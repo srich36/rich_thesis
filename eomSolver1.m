@@ -1,4 +1,4 @@
-function dydt = odefun(t,y,ub,c,n0, xi0, xi1, xi2, xi3)
+function dydt = eomSolver1(t,y,ub,c,n0, xi0, xi1, xi2, xi3)
 
     deltas = deltaT1(t, xi0, xi1, xi2, xi3);
 
