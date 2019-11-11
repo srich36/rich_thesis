@@ -1,11 +1,16 @@
 clc; clear all; close;
 warning("off");
 
+testParticle = [   0.4523300824143442 1 -0.6631593908754743 0.3907228879033605 -1 0.03984607096005797 -1 1 1.433357179918088 0 0.001 ];
+
+evalTestParticle = false;
+debugPSO = false;
 debug = false;
 displayCostFunctionValue = false;
 displayAverageCostValuePerIteration = true;
 
 penaltyCoefficient = 100;
+penaltyValueCutoff = .001;
 vrInitial = 0; vrTerminal = 0;
 
 xiInital = 0;
@@ -36,7 +41,7 @@ ParticleUB = [ UBxi, UBxi, UBxi, UBxi, UBv, UBv, UBv, UBv, UBt1, UBdeltaE, UBdel
     Assign Parameters
 %}
 
-numParticles = 30; numUnknowns = 11; numIterations = 10;
+numParticles = 110; numUnknowns = 11; numIterations = 100;
 
 swarm = zeros(numParticles, numUnknowns);
 
@@ -50,6 +55,12 @@ velocities = zeros(numParticles, numUnknowns);
 
 VelocityUB = ParticleUB-ParticleLB;
 VelocityLB = -VelocityUB;
+
+if evalTestParticle
+    swarm = testParticle;
+    numParticles = 1;
+    numIterations = 1;
+end
 
 for i = 1:numParticles
     particleCostFunctionBests(i) = inf;
@@ -176,18 +187,25 @@ for j=1:numIterations
             end
 
             penalty = 0;
-            if abs(vrFinal) > 10e-3
+
+
+            if abs(vrFinal) > penaltyValueCutoff
                 penalty+=abs(vrFinal)*penaltyCoefficient;
             end
 
             d2 = vThetaFinal-sqrt(ub/R2);
-            if abs(d2) > 10e-3
+            if abs(d2) > penaltyValueCutoff
                 penalty+=abs(d2)*penaltyCoefficient;
             end
 
             d3 = rFinal-R2;
-            if abs(d3) > 10e-3
+            if abs(d3) > penaltyValueCutoff
                 penalty+=abs(d3)*penaltyCoefficient;
+            end
+            if evalTestParticle
+                printf("vrFinal is %f\n", vrFinal)
+                printf("vTheta error value is %f\n", d2);
+                printf("rFinal error value is %f\n", d3);
             end
             cost = deltaT1Particle+deltaT2Particle+penalty;
             costFunctionVals(k) = cost;
@@ -229,14 +247,7 @@ for j=1:numIterations
         cS = 1.49445*rand;
         cITerm = cI*velocities(i, :);
         cCTerm = cC*(particlePersonalBest(i, :) - swarm(i, :));
-        disp(cCTerm);
         cSTerm = cS*(globalBestParticle-swarm(i, :));
-
-        if debug
-            printf("cI term is %f\n", cITerm);
-            printf("cC term is %f\n", cCTerm);
-            printf("cS term is %f\n", cSTerm);
-        end
         % Need to check to make sure that this bounded value works with matrices
         velocities(i, :) = boundValue(cITerm+cCTerm+cSTerm, VelocityLB, VelocityUB);
         swarm(i, :) = swarm(i, :) + velocities(i, :);
@@ -246,11 +257,21 @@ for j=1:numIterations
 
     end
 
+    if debugPSO
+        printf("cI term is %f\n", cITerm);
+        printf("cC term is %f\n", cCTerm);
+        printf("cS term is %f\n", cSTerm);
+    end
+
     globalBestValuePerIteration(j) = globalBestValue;
     printf("Global best for iteration %f is %f\n", j, globalBestValue);
 end
 
 save 'PSO_results'
+
+printf("\nDelta t1 for best particle is %f\n", globalBestParticle(9));
+printf("Delta E for best particle is %f\n", globalBestParticle(10));
+printf("Delta t2 for best particle is %f\n\n", globalBestParticle(11));
 disp(globalBestParticle);
 
 
