@@ -56,14 +56,14 @@ mkdir './results'
 
 betaDirString = strcat('beta',num2str(Beta));
 mkdir(fullfile('.', 'results', betaDirString));
-fileNameString = strcat('LoopNum',num2str(numPsoIterations), 'pNum', num2str(numParticles), 'Inum', num2str(numIterations), '.csv');
+fileNameString = strcat('psoIterNum',num2str(numPsoIterations),'execNum',num2str(numExecutions),'partNum, '.csv');
 
 
 
 resultsFileName=fullfile('.','results', betaDirString, fileNameString);
 
 if ~isfile(resultsFileName)
-    cHeader = {'numParticles', 'numIterations', 'Jbest' 'Time Elapsed' 'xi1' 'xi2' 'xi3' 'xi4' 'vi1' 'vi2' 'vi3' 'vi4' 't1' 'deltaE' 't2' }; %dummy header
+    cHeader = {'Jbest' 'Time Elapsed' 'xi1' 'xi2' 'xi3' 'xi4' 'vi1' 'vi2' 'vi3' 'vi4' 't1' 'deltaE' 't2' }; %dummy header
     commaHeader = [cHeader;repmat({','},1,numel(cHeader))]; %insert commaas
     commaHeader = commaHeader(:)';
     textHeader = cell2mat(commaHeader); %cHeader in text with commas
@@ -384,7 +384,7 @@ for executionNum=1:numExecutions
     
     
     
-    csvData = horzcat(numParticles, numIterations, globalBestValuePerExecution, executionTime, globalBestParticlePerExecution);
+    csvData = horzcat(globalBestValuePerExecution, executionTime, globalBestParticlePerExecution);
     dlmwrite(resultsFileName,csvData,'-append');
 
     %{
