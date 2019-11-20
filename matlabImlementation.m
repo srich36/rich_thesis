@@ -49,8 +49,12 @@ UBt1=3; UBdeltaE = 2*pi; UBdeltat2=3; UBxi = 1; UBv=1;
 ParticleLB = [ LBxi, LBxi, LBxi, LBxi, LBv, LBv, LBv, LBv, LBt1, LBdeltaE, LBdeltat2 ];
 ParticleUB = [ UBxi, UBxi, UBxi, UBxi, UBv, UBv, UBv, UBv, UBt1, UBdeltaE, UBdeltat2 ];
 
-numExecutions=1; numPsoIterations=1;
-numParticles = 110; numUnknowns = 11; numIterations = 500;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%    Particle Params     %%
+numExecutions=30; numPsoIterations=5;
+numParticles = 110; numUnknowns = 11; numIterations = 1000;
+%%    Particle Params     %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 mkdir './results'
 
@@ -73,19 +77,8 @@ if ~isfile(resultsFileName)
     fclose(fid);
 end
 
-%{
-fprintf(fid, '\n**********************************************\n');
-fprintf(fid, '**********************************************\n');
-fprintf(fid, 'RESULTS FOR number of PSO Loops: %f , number of executions %f\n',numPsoIterations, numExecutions);
-fprintf(fid, "Number of iterations per PSO loop: %f, number of particles: %f\n", numIterations, numParticles);
-fprintf(fid, '**********************************************\n');
-fprintf(fid, '**********************************************\n');
-
-fclose(fid);
-%}
 
 for executionNum=1:numExecutions
-    
     globalBestValuePerExecution = inf;
     globalBestParticlePerExecution = zeros(1, numUnknowns);
 
@@ -104,16 +97,22 @@ for executionNum=1:numExecutions
         if displayPsoIterationNumber
             fprintf("***On pso Iteration number %f out of %f***\n", psoIteration, numPsoIterations);            
         end
-
         swarm = zeros(numParticles, numUnknowns);
         cCTerm = zeros(numParticles, numUnknowns);
         cITerm = zeros(numParticles, numUnknowns);
         cSTerm = zeros(numParticles, numUnknowns);
 
 
-
         for i=1:numUnknowns
             swarm(:, i) = ParticleLB(i)+rand(numParticles,1)*(ParticleUB(i)-ParticleLB(i));
+        end
+        
+        %Rehydrate swarm
+        if psoIteration > 1
+            for i=1:numParticles/5
+                swarm(i,:) = globalBestParticlePerExecution;
+                
+            end
         end
         particlePersonalBest = zeros(numParticles, numUnknowns);
         costFunctionVals = zeros(numParticles, 1);
@@ -387,21 +386,6 @@ for executionNum=1:numExecutions
     csvData = horzcat(numParticles, numIterations, globalBestValuePerExecution, executionTime, globalBestParticlePerExecution);
     dlmwrite(resultsFileName,csvData,'-append');
 
-    %{
-    fid = fopen(resultsFileName,'a');
-    fprintf(fid, '\n**********************************************\n');
-    fprintf(fid, "Results for execution number %f\n", executionNum);
-    fprintf(fid, '**********************************************\n');
-    fprintf(fid, "Delta t1 for best particle is %f\n", globalBestParticle(9));
-    fprintf(fid, "Delta E for best particle is %f\n", globalBestParticle(10));
-    fprintf(fid, "Delta t2 for best particle is %f\n", globalBestParticle(11));
-    fprintf(fid, "Global best value is %f\n", globalBestValuePerExecution);
-    fprintf(fid, "Global best particle is:\n %f %f %f %f %f %f %f %f %f %f %f\n", globalBestParticlePerExecution);
-    fprintf(fid, "Time elapsed: %f\n", executionTime);
-    fclose(fid);
-    %}
-    
-
     
 end
 
@@ -409,9 +393,10 @@ save 'PSO_results_matlab'
 
 
 
-fprintf("\nDelta t1 for best particle is %f\n", globalBestParticle(9));
-fprintf("Delta E for best particle is %f\n", globalBestParticle(10));
-fprintf("Delta t2 for best particle is %f\n\n", globalBestParticle(11));
-disp(globalBestParticle);
+fprintf("\nDelta t1 for best particle is %f\n", globalBestParticlePerExecution(9));
+fprintf("Delta E for best particle is %f\n", globalBestParticlePerExecution(10));
+fprintf("Delta t2 for best particle is %f\n\n", globalBestParticlePerExecution(11));
+disp(globalBestParticlePerExecution);
+
 
 
