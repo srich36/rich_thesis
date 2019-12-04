@@ -1,0 +1,2 @@
+numParticles,numIterations,Jbest,Time Elapsed,xi1,xi2,xi3,xi4,vi1,vi2,vi3,vi4,t1,deltaE,t2,
+100,500,1.0967,51.067,-0.34853,-0.12173,1,1,-0.12453,0.69412,0.037855,0.98475,0.68232,2.8794,0.41441

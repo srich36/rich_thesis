@@ -12,9 +12,16 @@ evalTestParticle = false;
 
 debug = false;
 debugPSO = false;
+rehydrate = true;
+
+averageJThresholdPercent = .1;
+numIterBeforeHydration = 100;
+numPrevIterationsAvgJ = 50;
+
+rehydratePercentage = .33;
 displayCostFunctionValue = false;
 displayAverageCostValuePerIteration = false;
-displayGlobalBestPerIteration = false;
+displayGlobalBestPerIteration = true;
 displayIterationNum = false;
 displayExecutionNum = true;
 displayPsoIterationNumber = true;
@@ -24,8 +31,8 @@ badResultPenalty = 100000;
 
 penaltyCoefficient = 100;
 penaltyValueCutoff = .001;
-vrInitial = 0; vrTerminal = 0;
 
+vrInitial = 0; vrTerminal = 0;
 xiInital = 0;
 Beta = 2;
 R1 = 1; R2 = Beta*R1; ub = 1;
@@ -51,20 +58,31 @@ ParticleUB = [ UBxi, UBxi, UBxi, UBxi, UBv, UBv, UBv, UBv, UBt1, UBdeltaE, UBdel
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%    Particle Params     %%
-numExecutions=30; numPsoIterations=5;
-numParticles = 110; numUnknowns = 11; numIterations = 1000;
+numExecutions=1; numPsoIterations=1;
+numParticles = 100; numUnknowns = 11; numIterations = 500;
 %%    Particle Params     %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+options = odeset('RelTol',1e-8,'AbsTol',1e-10);
+
+
+rehydrateString = 'rehydrate';
 
 mkdir './results'
 
+
 betaDirString = strcat('beta',num2str(Beta));
 mkdir(fullfile('.', 'results', betaDirString));
-fileNameString = strcat('LoopNum',num2str(numPsoIterations), 'pNum', num2str(numParticles), 'Inum', num2str(numIterations), '.csv');
+if rehydrate
+    mkdir(fullfile('.', 'results', betaDirString, rehydrateString));
+end
+fileNameString = strcat('LoopNum',num2str(numPsoIterations), 'pNum', num2str(numParticles), 'Inum', num2str(numIterations),'r', num2str(rehydrate), '.csv');
 
 
-
-resultsFileName=fullfile('.','results', betaDirString, fileNameString);
+if ~rehydrate
+    resultsFileName=fullfile('.','results', betaDirString, fileNameString);
+else 
+    resultsFileName=fullfile('.','results', betaDirString, rehydrateString, fileNameString);
+end
 
 if ~isfile(resultsFileName)
     cHeader = {'numParticles', 'numIterations', 'Jbest' 'Time Elapsed' 'xi1' 'xi2' 'xi3' 'xi4' 'vi1' 'vi2' 'vi3' 'vi4' 't1' 'deltaE' 't2' }; %dummy header
@@ -107,7 +125,6 @@ for executionNum=1:numExecutions
             swarm(:, i) = ParticleLB(i)+rand(numParticles,1)*(ParticleUB(i)-ParticleLB(i));
         end
         
-        %Rehydrate swarm
         if psoIteration > 1
             for i=1:numParticles/5
                 swarm(i,:) = globalBestParticlePerExecution;
@@ -142,6 +159,42 @@ for executionNum=1:numExecutions
             if displayIterationNum
                 fprintf("***On iteration %f out of %f***\n",j, numIterations);
             end
+            
+            Jdiffavg = 0;
+            if j > numIterBeforeHydration
+                if j > numPrevIterationsAvgJ
+                    for jsumIter=flip(1:numPrevIterationsAvgJ)
+                        if jsumIter ~= 1
+                            prevValue = globalBestValuePerIteration(j-jsumIter);
+                            nextValue = globalBestValuePerIteration(j-jsumIter+1);
+                            percentDiff = (prevValue-nextValue)*100/prevValue;
+                            Jdiffavg = Jdiffavg+percentDiff;
+                        end
+                    end
+                    %Since you are comparing the two previous values, the
+                    %number of averages you are summing is the n previous
+                    %values-1
+                    averageJChangePercent = Jdiffavg/(numPrevIterationsAvgJ-1);
+                else
+                    averageJChangePercent = 100;
+                end
+            else
+                averageJChangePercent = 100;
+                
+            end
+            if rehydrate && averageJChangePercent < averageJThresholdPercent
+                disp(globalBestValuePerExecution);
+                for rehydratedParticle = 1:floor(numParticles*rehydratePercentage)
+                    for i=1:numUnknowns
+                        swarm(rehydratedParticle, i) = ParticleLB(i)+rand(1,1)*(ParticleUB(i)-ParticleLB(i));
+                        velocities(rehydratedParticle,:) = totalVelocityTerm;
+                    end
+                end
+                disp("Rehydrating");
+                disp(globalBestValuePerExecution);
+            end
+            
+            
             %Functions to evaluate each particle
             %Integrate the first round here
             for k=1:numParticles
