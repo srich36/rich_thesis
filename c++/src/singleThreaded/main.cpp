@@ -61,8 +61,10 @@ struct thrustArcIc{
     }
 };
 
-void allocateSwarm(double **swarm, int numParticles, int numUnknowns, particleBounds, particleBounds );
-void printSwarm(double **swarm, int, int);
+void allocateSwarm(double *swarm, int numParticles, int numUnknowns, particleBounds, particleBounds );
+void printSwarm(double *swarm, int, int);
+void printParticleBests(double *, int);
+int indexConversion(int, int, int);
 double randNumberPSO(double, double);
 
 double testParticle[] = {-0.856580908970521,-0.928947964866100,-0.532194537192831,-0.410209473732025,-0.0110478865577260,-0.654732028329036,0.937910086713157,-0.964208556080876,1.91880746165091,4.43391078133062,0.581192538349102 };
@@ -142,11 +144,21 @@ int main(){
         /*
             Allocate particles
         */
-        double** swarm = new double*[numParticles];
-        for(int i = 0; i < numParticles; i++){
-            swarm[i] = new double[numUnknowns];
-        }
+        double* swarm = new double[numParticles*numUnknowns];
         allocateSwarm(swarm, numParticles, numUnknowns, particleLB, particleUB);
+        //Allocate Personal Particle Values
+        double *particlePersonalBestValues = new double[numParticles];
+        for(int i = 0; i < numParticles; i++){
+            particlePersonalBestValues[i] = numeric_limits<double>::max();
+        }
+
+        double **particlePersonalBestParticles = new double*[numParticles];
+        for(int i = 0; i < numParticles; i++){
+            particlePersonalBestParticles[i] = new double[numUnknowns];
+        }
+
+
+        //printParticleBests(particlePersonalBestValues, numParticles);
         printSwarm(swarm, numParticles, numUnknowns);
 
         for(int iterationNum = 0; iterationNum<numIterations; iterationNum++){
@@ -162,19 +174,27 @@ int main(){
 }
 
 
-void printSwarm(double **swarm, int numParticles, int numUnknowns){
+void printSwarm(double *swarm, int numParticles, int numUnknowns){
     string swarmPrintString = "\n***********SWARM***********\n";
     cout << swarmPrintString << endl;
     for(int i = 0;i<numParticles; i++){
         for(int j = 0; j<numUnknowns; j++){
-            cout << swarm[i][j] << " ";
+            cout << swarm[indexConversion(i,j, numUnknowns)] << " ";
         }
         cout << endl;
     }
     cout << swarmPrintString << endl;
 }
 
-void allocateSwarm(double **swarm, int numParticles, int numUnknowns, particleBounds lowerBounds, particleBounds upperBounds){
+void printParticleBests(double* particleBests, int numParticles){
+    string particleBestsString = "\n***************PARTICLE BESTS**********\n";
+    cout << particleBestsString << endl;
+    for(int i=0; i < numParticles; i++){
+        cout << particleBests[i] <<" ";
+    }
+}
+
+void allocateSwarm(double *swarm, int numParticles, int numUnknowns, particleBounds lowerBounds, particleBounds upperBounds){
     cout << "Allocating swarm" << endl;
     double* lb = lowerBounds.getBounds();
     double* ub = upperBounds.getBounds();
@@ -182,9 +202,8 @@ void allocateSwarm(double **swarm, int numParticles, int numUnknowns, particleBo
         for(int j = 0; j<numUnknowns; j++){
             //Rand should go between 0 and 1
             double rand = randNumberPSO(0.0, 1.0);
-            cout << rand  << endl;
             double randBetweenBounds = (ub[j]-lb[j])*rand+lb[j];
-            swarm[i][j] = randBetweenBounds;
+            swarm[indexConversion(i,j, numUnknowns)] = randBetweenBounds;
         }
     }
 }
@@ -192,4 +211,9 @@ void allocateSwarm(double **swarm, int numParticles, int numUnknowns, particleBo
 double randNumberPSO(double min, double max){
     double r3 = min + static_cast <double> (rand()) /( static_cast <double> (RAND_MAX/(max-min)));
     return r3;
+}
+
+//(3,4) will return 4*11+3 = 44
+int indexConversion(int x, int y, int arrWidth=numUnknowns){
+    return x * arrWidth + y;
 }
