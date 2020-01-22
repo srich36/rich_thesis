@@ -10,13 +10,19 @@ testParticle = [-0.856580908970521,-0.928947964866100,-0.532194537192831,-0.4102
 
 evalTestParticle = false;
 
+cyclesBeforeHydrateAgain = 10;
+cyclesBeforeHydrateAgainValue = 10;
+resetVelocityTerm = [ 0 0 0 0 0 0 0 0 0 0 0 ];
+
 debug = false;
 debugPSO = false;
-rehydrate = true;
+rehydrate = false;
+graphValuesOverIterations = true;
+%colorValues = [ 'bo-', 'ro-', 'yo-', 'go-', 'co-' ];
 
 averageJThresholdPercent = .1;
-numIterBeforeHydration = 100;
-numPrevIterationsAvgJ = 50;
+numIterBeforeHydration = 50;
+numPrevIterationsAvgJ = 10;
 
 rehydratePercentage = .33;
 displayCostFunctionValue = false;
@@ -50,7 +56,7 @@ icThurstArc1 = [ vrInitial; vThetaInital; rInitial; xiInital ];
 Parameter Bounds
 %}
 
-LBt1=0.001; LBdeltaE = 0; LBdeltat2=0.1; LBxi = -1; LBv=-1;
+LBt1=0.001; LBdeltaE = 0; LBdeltat2=0.01; LBxi = -1; LBv=-1;
 UBt1=3; UBdeltaE = 2*pi; UBdeltat2=3; UBxi = 1; UBv=1;
 
 ParticleLB = [ LBxi, LBxi, LBxi, LBxi, LBv, LBv, LBv, LBv, LBt1, LBdeltaE, LBdeltat2 ];
@@ -58,8 +64,8 @@ ParticleUB = [ UBxi, UBxi, UBxi, UBxi, UBv, UBv, UBv, UBv, UBt1, UBdeltaE, UBdel
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%    Particle Params     %%
-numExecutions=1; numPsoIterations=1;
-numParticles = 100; numUnknowns = 11; numIterations = 500;
+numExecutions=5; numPsoIterations=1;
+numParticles = 110; numUnknowns = 11; numIterations = 25;
 %%    Particle Params     %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 options = odeset('RelTol',1e-8,'AbsTol',1e-10);
@@ -160,21 +166,19 @@ for executionNum=1:numExecutions
                 fprintf("***On iteration %f out of %f***\n",j, numIterations);
             end
             
-            Jdiffavg = 0;
+            Jsum = 0;
             if j > numIterBeforeHydration
                 if j > numPrevIterationsAvgJ
+                    prevJToCompare = globalBestValuePerIteration(j-numPrevIterationsAvgJ);
                     for jsumIter=flip(1:numPrevIterationsAvgJ)
-                        if jsumIter ~= 1
-                            prevValue = globalBestValuePerIteration(j-jsumIter);
-                            nextValue = globalBestValuePerIteration(j-jsumIter+1);
-                            percentDiff = (prevValue-nextValue)*100/prevValue;
-                            Jdiffavg = Jdiffavg+percentDiff;
-                        end
+                        Jsum = Jsum + globalBestValuePerIteration(j-jsumIter);
+                        
                     end
                     %Since you are comparing the two previous values, the
                     %number of averages you are summing is the n previous
                     %values-1
-                    averageJChangePercent = Jdiffavg/(numPrevIterationsAvgJ-1);
+                    avgJ = Jsum/numPrevIterationsAvgJ;
+                    averageJChangePercent = 100*(prevJToCompare-avgJ)/prevJToCompare;
                 else
                     averageJChangePercent = 100;
                 end
@@ -182,16 +186,15 @@ for executionNum=1:numExecutions
                 averageJChangePercent = 100;
                 
             end
-            if rehydrate && averageJChangePercent < averageJThresholdPercent
-                disp(globalBestValuePerExecution);
+            if rehydrate && averageJChangePercent < averageJThresholdPercent && ~cyclesBeforeHydrateAgain
                 for rehydratedParticle = 1:floor(numParticles*rehydratePercentage)
                     for i=1:numUnknowns
                         swarm(rehydratedParticle, i) = ParticleLB(i)+rand(1,1)*(ParticleUB(i)-ParticleLB(i));
-                        velocities(rehydratedParticle,:) = totalVelocityTerm;
+                        velocities(rehydratedParticle,:) = resetVelocityTerm;
                     end
                 end
                 disp("Rehydrating");
-                disp(globalBestValuePerExecution);
+                cyclesBeforeHydrateAgain = cyclesBeforeHydrateAgainValue;
             end
             
             
@@ -426,6 +429,10 @@ for executionNum=1:numExecutions
             if displayGlobalBestPerIteration
                 fprintf("Global best for iteration %f is %f\n", j, globalBestValue);
             end
+            
+            if cyclesBeforeHydrateAgain > 0
+                cyclesBeforeHydrateAgain = cyclesBeforeHydrateAgain - 1;
+            end
         end
         
         if displayGlobalBestPerPSOIteration
@@ -434,7 +441,14 @@ for executionNum=1:numExecutions
     end
     executionTime = toc;
     
-    
+    if graphValuesOverIterations
+        plot(1:numIterations, globalBestValuePerIteration, '-o');
+        title("JBest Value Per Iteration - 110 Particles");
+        xlabel("Iteration number");
+        ylabel("Global JBest Value");
+        hold on;
+        legend('Run 1', 'Run 2', 'Run 3', 'Run 4', 'Run 5');
+    end
     
     csvData = horzcat(numParticles, numIterations, globalBestValuePerExecution, executionTime, globalBestParticlePerExecution);
     dlmwrite(resultsFileName,csvData,'-append');
