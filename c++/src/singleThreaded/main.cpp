@@ -5,9 +5,13 @@
 #include <vector>
 #include <stdlib.h>
 #include <time.h>
+#include <boost/array.hpp>
+#include <boost/numeric/odeint.hpp>
 
 using namespace std;
+using namespace boost::numeric::odeint;
 
+typedef std::vector< double > state_type;
 
 /*
 ************Configuration params************
@@ -45,8 +49,23 @@ class particleBounds{
         }
 
         double* getBounds() { return bounds; }
+        friend particleBounds operator-(const particleBounds &p1, const particleBounds &p2);
+        friend ostream& operator<<(ostream& os, const particleBounds& p1);
 
 };
+
+particleBounds operator-(const particleBounds &p1, const particleBounds &p2){
+    return particleBounds(p1.t1-p1.t2, p1.de-p2.de, p1.t2-p2.t2, p1.xi-p2.xi, p1.v-p2.v);
+}
+
+ostream& operator<<(ostream& os, const particleBounds& p1)
+{
+    os << p1.bounds[0] << ' ' << p1.bounds[1] << ' ' << p1.bounds[2] << ' ';
+    os << p1.bounds[3] << ' ' << p1.bounds[4] << ' ' << p1.bounds[5] << ' ';
+    os << p1.bounds[6] << ' ' << p1.bounds[7] << ' ' << p1.bounds[8] << ' ';
+    os << p1.bounds[9] << ' ' << p1.bounds[10] << ' ' << endl;
+    return os;
+}
 
 struct thrustArcIc{
     double vrInitial;
@@ -60,6 +79,28 @@ struct thrustArcIc{
         xiInital = xi;
     }
 };
+
+void thrustArc1EOM( const state_type &x , state_type &dxdt , const double t, double ub, fuelParams fuel,
+                    double xi0, double xi1, double xi2, double xi3  )
+{
+    double delta = xi0+xi1*t+xi2*pow(t,2)+xi3*pow(t,3);
+    double ratio = (fuel.c*fuel.n0)/(fuel.c-fuel.n0*t);
+    dxdt[0] = -1*(ub-x[3]*pow(x[2],2))/(pow(x[3],2))+ratio*sin(delta);
+    dxdt[1] = -1*x[1]*x[2]/x[3]+ratio*cos(delta);
+    dxdt[2] = x[1];
+    dxdt[3] = x[2]/x[3];
+}
+
+void thrustArc2EOM( const state_type &x , state_type &dxdt , const double t, double ub, fuelParams fuel,
+                    double v0, double v1, double v2, double v3, double t1  ) {
+    double delta = v0+v1*t+v2*pow(t,2)+v3*pow(t,3);
+    double ratio = fuel.c*fuel.n0/(fuel.c-fuel.n0*(t1+t));
+    dxdt[0] = -1*(ub-x[3]*pow(x[2],2))/(pow(x[3],2))+ratio*sin(delta);
+    dxdt[1] = -1*x[1]*x[2]/x[3]+ratio*cos(delta);
+    dxdt[2] = x[1];
+    dxdt[3] = x[2]/x[3];
+
+}
 
 void allocateSwarm(double *swarm, int numParticles, int numUnknowns, particleBounds, particleBounds );
 void printSwarm(double *swarm, int, int);
@@ -113,11 +154,14 @@ const double UBt1=3, UBdeltaE = 2*M_PI, UBdeltat2=3, UBxi = 1, UBv=1;
    so we don't have to rebuild it everytime we modify a param
 */
 
+typedef std::vector< double > state_type;
+
 int main(){
     /*PSO Configuration params*/
     srand(time(0));
-    cout << rand() / RAND_MAX << endl;
     int Beta = 2;
+
+auto rkd = runge_kutta_dopri5<state_type>{};
 
     /* Initial condition set */
     double vrInitial = 0; double vrTerminal = 0; double xiInital = 0;
@@ -139,36 +183,79 @@ int main(){
         */
         double globalBestValue = numeric_limits<double>::max();
         vector<double> globalBestValuePerIteration;
-        double globalBestParticle[numUnknowns];
+        double *globalBestParticle = new double[numUnknowns];
+
 
         /*
             Allocate particles
         */
         double* swarm = new double[numParticles*numUnknowns];
         allocateSwarm(swarm, numParticles, numUnknowns, particleLB, particleUB);
+
         //Allocate Personal Particle Values
         double *particlePersonalBestValues = new double[numParticles];
         for(int i = 0; i < numParticles; i++){
             particlePersonalBestValues[i] = numeric_limits<double>::max();
         }
 
-        double **particlePersonalBestParticles = new double*[numParticles];
-        for(int i = 0; i < numParticles; i++){
-            particlePersonalBestParticles[i] = new double[numUnknowns];
-        }
+        //This defaults to 0 which is what we want
+        double *particlePersonalBestParticles = new double[numParticles*numUnknowns];
+        double *costFunctionVals = new double[numParticles];
+        double *particleVelocities = new double[numParticles*numUnknowns];
+        particleBounds VelocityUB = particleUB-particleLB;
+        particleBounds VelocityLB = particleLB-particleUB;
+
+
 
 
         //printParticleBests(particlePersonalBestValues, numParticles);
-        printSwarm(swarm, numParticles, numUnknowns);
+        //printSwarm(swarm, numParticles, numUnknowns);
 
         for(int iterationNum = 0; iterationNum<numIterations; iterationNum++){
             /*
             ************Evaluate a single iteration within this loop************
             */
+
+           if(displayIterationNum) cout << "***On iteration " << iterationNum+1 <<" out of " << numIterations << " ***\n" ;
+
+            //We can parallelize here
+           for(int particleNum = 0; particleNum < numParticles; particleNum++){
+
+            //Evaluate each particle here
+            double deltaT1Particle = swarm[indexConversion(particleNum, 9, numUnknowns)];
+
+            state_type inoutTarc1 = { tarc1.vrInitial, tarc1.vThetaInital, tarc1.rInitial, tarc1.xiInital};
+            double t_start = 0.0 , t_end = 1.0, dt=.001;
+            //[ dense_output_detail_generation1
+            typedef boost::numeric::odeint::result_of::make_dense_output<
+                runge_kutta_dopri5< state_type > >::type dense_stepper_type;
+            dense_stepper_type dense2 = make_dense_output( 1.0e-6 , 1.0e-6 , runge_kutta_dopri5< state_type >() );
+            //]
+
+            //[ dense_output_detail_generation2
+
+            /*
+                @parameter absolute error tolerance
+                @parameter relative error tolerance
+            */
+            integrate_const( make_dense_output( 1.0e-6 , 1.0e-6 , runge_kutta_dopri5< state_type >() ) , thrustArc1EOM , inout , t_start , t_end , dt );
+
+
+           }
+
         }
+
+        delete globalBestParticle;
+        delete swarm;
+        delete particlePersonalBestValues;
+        delete particlePersonalBestParticles;
+        delete costFunctionVals;
+        delete particleVelocities;
 
 
     }
+
+
 
     return 0;
 }
