@@ -117,12 +117,12 @@ public:
     double ub, v0, v1, v2, v3, deltaT1;
     fuelParams fuel;
 
-    thrustArc2EOM(double ub, double xi0, double xi1, double xi2, double xi3, fuelParams fuel, double deltaT1){
+    thrustArc2EOM(double ub, double v0, double v1, double v2, double v3, fuelParams fuel, double deltaT1){
         this->ub=ub;
-        this->v0 = xi0;
-        this->v1 = xi1;
-        this->v2 = xi2;
-        this->v3 = xi3;
+        this->v0 = v0;
+        this->v1 = v1;
+        this->v2 = v2;
+        this->v3 = v3;
         this->fuel = fuel;
         this->deltaT1 = deltaT1;
     }
@@ -142,17 +142,6 @@ public:
         dxdt[3] = x[1]/x[2];
     }
 };
-
-void thrustArc2EOM( const state_type &x , state_type &dxdt , const double t, double ub, fuelParams fuel,
-                    double v0, double v1, double v2, double v3, double t1  ) {
-    double delta = v0+v1*t+v2*pow(t,2)+v3*pow(t,3);
-    double ratio = fuel.c*fuel.n0/(fuel.c-fuel.n0*(t1+t));
-    dxdt[0] = -1*(ub-x[2]*pow(x[1],2))/(pow(x[2],2))+ratio*sin(delta);
-    dxdt[1] = -1*x[0]*x[1]/x[2]+ratio*cos(delta);
-    dxdt[2] = x[0];
-    dxdt[3] = x[1]/x[2];
-
-}
 
 void allocateSwarm(double *swarm, int numParticles, int numUnknowns, particleBounds, particleBounds );
 void printSwarm(double *swarm, int, int);
@@ -198,6 +187,13 @@ const double UBt1=3, UBdeltaE = 2*M_PI, UBdeltat2=3, UBxi = 1, UBv=1;
 */
 
 typedef std::vector< double > state_type;
+
+//Tolerances
+const double absoluteTolerance = 1.0e-6;
+const double relTolerance = 1.0e-6;
+
+//Initial step size
+const double initialStepSize = .0001;
 
 int main(){
     /*PSO Configuration params*/
@@ -283,19 +279,20 @@ int main(){
 
 
             state_type inoutTarc1 = { tarc1.vrInitial, tarc1.vThetaInital, tarc1.rInitial, tarc1.xiInital};
-            double t_start = 0.0 , t_end = deltaT1Particle, dt=.0001;
+            double t_start1 = 0.0 , t_end1 = deltaT1Particle, dt=initialStepSize;
             //[ dense_output_detail_generation1
             typedef boost::numeric::odeint::result_of::make_dense_output<
                 runge_kutta_dopri5< state_type > >::type dense_stepper_type;
-
-            dense_stepper_type dense2 = make_dense_output( 1.0e-6 , 1.0e-6 , runge_kutta_dopri5< state_type >() );
 
             /*
                 @parameter absolute error tolerance
                 @parameter relative error tolerance
             */
+            dense_stepper_type tarc1Stepper = make_dense_output( absoluteTolerance , relTolerance , runge_kutta_dopri5< state_type >() );
+
+
             thrustArc1EOM sys1 = thrustArc1EOM(ub, xi0, xi1, xi2, xi3, fuel );
-            integrate_const( dense2 , sys1 , inoutTarc1 , t_start , t_end , dt );
+            integrate_const( tarc1Stepper , sys1 , inoutTarc1 , t_start1 , t_end1 , dt );
             cout << inoutTarc1[0] << " " << inoutTarc1[1] << " " << inoutTarc1[2] << " " << inoutTarc1[3] << endl;
             double vr1 = inoutTarc1[0];
             double vTheta1 = inoutTarc1[1];
@@ -353,20 +350,20 @@ int main(){
                     cout << "Eccentric anamoly 1 is " << eccAnamoly1 << endl;
                     cout << "Eccentric anamoly 2 is " << eccAnomaly2 << endl;
                     cout << "True anamoly 2 is " << trueAnamoly2 << endl;
-                    cout << "Coasting time interval 2 is " << coastingTimeInterval << endl;
+                    cout << "Coasting time interval 2 is " << coastingTimeInterval << endl << endl;
                 }
 
                 double vr2 = sqrt(ub/(aCoast*(1-pow(eCoast,2))))*eCoast*sin(trueAnamoly2);
-                double vtheta2 = sqrt(ub/(aCoast*(1-pow(eCoast,2))))*(1+eCoast*cos(trueAnamoly2));
+                double vTheta2 = sqrt(ub/(aCoast*(1-pow(eCoast,2))))*(1+eCoast*cos(trueAnamoly2));
                 double r2 = aCoast*(1-pow(eCoast,2))/(1+eCoast*cos(trueAnamoly2));
                 double xi2PreTarc2 = xi1PostTarc + (trueAnamoly2-trueAnamoly1);
 
                 //This is checked and working
                 if(debug){
                     cout << "vr2 is " << vr2 << endl;
-                    cout << "vTheta2 is " << vtheta2 << endl;
+                    cout << "vTheta2 is " << vTheta2 << endl;
                     cout << "r2 is " << r2 << endl;
-                    cout << "xi2 is " << xi2PreTarc2 << endl;
+                    cout << "xi2 is " << xi2PreTarc2 << endl << endl;
                 }
 
                 double deltaT2Particle = swarm[indexConversion(particleNum, 10, numUnknowns )];
@@ -386,6 +383,24 @@ int main(){
                 deltaT2Particle = .41389;
                 /* Remove this when doing the whole swarm */
 
+                thrustArcIc tarc2 = thrustArcIc(vr2, vTheta2, r2, xi2PreTarc2);
+                dense_stepper_type tarc2Stepper = make_dense_output( 1.0e-6 , 1.0e-6 , runge_kutta_dopri5< state_type >() );
+                double t_start2 = 0.0 , t_end2 = deltaT2Particle, dt=initialStepSize;
+                state_type inoutTarc2 = { tarc2.vrInitial, tarc2.vThetaInital, tarc2.rInitial, tarc2.xiInital};
+                thrustArc2EOM sys2 = thrustArc2EOM(ub, v0, v1, v2, v3, fuel, deltaT1Particle );
+                integrate_const( tarc1Stepper , sys2 , inoutTarc2 , t_start2 , t_end2 , dt );
+
+                double vrFinal = inoutTarc2[0];
+                double vThetaFinal = inoutTarc2[1];
+                double rFinal = inoutTarc2[2];
+                double xiFinal = inoutTarc2[3];
+
+                if(debug){
+                    cout << "vr Final is " << vrFinal << endl;
+                    cout << "VTheta Final is " << vThetaFinal << endl;
+                    cout << "rFinal is " << rFinal << endl;
+                    cout << "xiFinal is " << xiFinal << endl << endl;
+                }
 
             }
 
