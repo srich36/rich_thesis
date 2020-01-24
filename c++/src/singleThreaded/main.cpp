@@ -12,6 +12,8 @@ using namespace std;
 using namespace boost::numeric::odeint;
 
 typedef std::vector< double > state_type;
+bool debug = true;
+
 
 /*
 ************Configuration params************
@@ -155,7 +157,6 @@ double testParticle[] = {-0.856580908970521,-0.928947964866100,-0.53219453719283
 
 
 bool evalTestParticle = false;
-bool debug = true;
 bool debugPSO = false;
 
 /*
@@ -189,8 +190,8 @@ const double UBt1=3, UBdeltaE = 2*M_PI, UBdeltat2=3, UBxi = 1, UBv=1;
 typedef std::vector< double > state_type;
 
 //Tolerances
-const double absoluteTolerance = 1.0e-6;
-const double relTolerance = 1.0e-6;
+const double absoluteTolerance = 1.0e-14;
+const double relTolerance = 1.0e-14;
 
 //Initial step size
 const double initialStepSize = .0001;
@@ -293,7 +294,6 @@ int main(){
 
             thrustArc1EOM sys1 = thrustArc1EOM(ub, xi0, xi1, xi2, xi3, fuel );
             integrate_const( tarc1Stepper , sys1 , inoutTarc1 , t_start1 , t_end1 , dt );
-            cout << inoutTarc1[0] << " " << inoutTarc1[1] << " " << inoutTarc1[2] << " " << inoutTarc1[3] << endl;
             double vr1 = inoutTarc1[0];
             double vTheta1 = inoutTarc1[1];
             double r1 = inoutTarc1[2];
@@ -402,19 +402,53 @@ int main(){
                     cout << "xiFinal is " << xiFinal << endl << endl;
                 }
 
+                double penalty = 0;
+
+                if(isnan(vrFinal) || isinf(vrFinal) || isnan(vThetaFinal) || isinf(vThetaFinal) || isnan(rFinal) || isinf(rFinal) || isnan(xiFinal) || isinf(xiFinal) ){
+                    penalty+=badResultPenalty;
+                }
+
+                if (abs(vrFinal) > penaltyValueCutoff){
+                    penalty+=abs(vrFinal)*penaltyCoefficient;
+                }
+
+                double d2 = vThetaFinal-sqrt(ub/R2);
+                if (abs(d2) > penaltyValueCutoff) {
+                    penalty+=abs(d2)*penaltyCoefficient;
+                }
+
+                double d3 = rFinal-R2;
+                if (abs(d3) > penaltyValueCutoff){
+                    penalty+=abs(d3)*penaltyCoefficient;
+                }
+
+                if(debug){
+                    cout << "vrError is " << vrFinal << endl;
+                    cout << "vTheta Error is " << d2 << endl;
+                    cout << "rFinal error is " << d3 << endl;
+                    cout << "Penalty is " << penalty << endl << endl;
+                }
+
+                double cost = deltaT1Particle+deltaT2Particle+penalty;
+                costFunctionVals[particleNum] = cost;
+
+            }else {
+                costFunctionVals[particleNum] = badResultPenalty;
+            }
+            if(debug){
+                cout << "Cost function value is " << costFunctionVals[particleNum] << endl << endl;
             }
 
 
            }
+           delete globalBestParticle;
+            delete swarm;
+            delete particlePersonalBestValues;
+            delete particlePersonalBestParticles;
+            delete costFunctionVals;
+            delete particleVelocities;
 
         }
-
-        delete globalBestParticle;
-        delete swarm;
-        delete particlePersonalBestValues;
-        delete particlePersonalBestParticles;
-        delete costFunctionVals;
-        delete particleVelocities;
 
 
     }
