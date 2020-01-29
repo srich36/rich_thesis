@@ -12,7 +12,7 @@ using namespace std;
 using namespace boost::numeric::odeint;
 
 typedef std::vector< double > state_type;
-bool debug = true;
+bool debug = true, outputParticleParams = true, evalTestParticle = false;
 
 
 /*
@@ -156,7 +156,6 @@ double testParticle[] = {-0.856580908970521,-0.928947964866100,-0.53219453719283
 
 
 
-bool evalTestParticle = false;
 bool debugPSO = false;
 
 /*
@@ -186,6 +185,7 @@ const double UBt1=3, UBdeltaE = 2*M_PI, UBdeltat2=3, UBxi = 1, UBv=1;
 /* Eventually this should read all the params from a config file
    so we don't have to rebuild it everytime we modify a param
 */
+
 
 typedef std::vector< double > state_type;
 
@@ -245,8 +245,6 @@ int main(){
         particleBounds VelocityLB = particleLB-particleUB;
 
 
-
-
         //printParticleBests(particlePersonalBestValues, numParticles);
         //printSwarm(swarm, numParticles, numUnknowns);
 
@@ -270,13 +268,13 @@ int main(){
             //Test Particle;
             //-0.094683	0.088429	-0.015286	0.56713	-0.12919	0.13894	0.22764	0.67635	0.66978	2.7559	0.41389;
 
-            /*Remove this when doing the whole swarm*/
-            xi0 = -.094683;
-            xi1 = .088429;
-            xi2 = -.015286;
-            xi3 = .56713;
-            deltaT1Particle = .66978;
-            /*Remove this when doing the whole swarm*/
+            if(evalTestParticle){
+                xi0 = -.094683;
+                xi1 = .088429;
+                xi2 = -.015286;
+                xi3 = .56713;
+                deltaT1Particle = .66978;
+            }
 
 
             state_type inoutTarc1 = { tarc1.vrInitial, tarc1.vThetaInital, tarc1.rInitial, tarc1.xiInital};
@@ -289,11 +287,27 @@ int main(){
                 @parameter absolute error tolerance
                 @parameter relative error tolerance
             */
+
+
             dense_stepper_type tarc1Stepper = make_dense_output( absoluteTolerance , relTolerance , runge_kutta_dopri5< state_type >() );
 
+            if(outputParticleParams){
+                cout << "xi0 is " << xi0 << endl;
+                cout << "xi1 is " << xi1 << endl;
+                cout << "xi2 is " << xi2 << endl;
+                cout << "xi3 is " << xi3 << endl;
+                cout << "Delta T1 particle is " << deltaT1Particle << endl << endl;
+            }
 
             thrustArc1EOM sys1 = thrustArc1EOM(ub, xi0, xi1, xi2, xi3, fuel );
-            integrate_const( tarc1Stepper , sys1 , inoutTarc1 , t_start1 , t_end1 , dt );
+
+            try {
+            integrate_adaptive( tarc1Stepper , sys1 , inoutTarc1 , t_start1 , t_end1 , dt );
+            }
+            catch(exception const& e){
+                cout << "Integration timed out" << endl;
+            }
+
             double vr1 = inoutTarc1[0];
             double vTheta1 = inoutTarc1[1];
             double r1 = inoutTarc1[2];
@@ -327,9 +341,9 @@ int main(){
 
                 double deltaE = swarm[indexConversion(particleNum, 9, numUnknowns )];
 
-                /* Remove this when doing the whole swarm*/
-                deltaE = 2.7559;
-                /* Remove this when doing the whole swarm*/
+                if(evalTestParticle){
+                    deltaE = 2.7559;
+                }
 
 
                 double eccAnomaly2 = eccAnamoly1+deltaE;
@@ -372,23 +386,32 @@ int main(){
                 double v2 = swarm[indexConversion(particleNum, 6, numUnknowns)];
                 double v3 = swarm[indexConversion(particleNum, 7, numUnknowns)];
 
+                if(outputParticleParams){
+                    cout << "v0 is " << v0 << endl;
+                    cout << "v1 is " << v1 << endl;
+                    cout << "v2 is " << v2 << endl;
+                    cout << "v3 is " << v3 << endl;
+                    cout << "deltaE is " << deltaE << endl;
+                    cout << "deltaT2 is "  << deltaT2Particle << endl << endl;
+                }
+
                 //Test Particle;
                 //-0.094683	0.088429	-0.015286	0.56713	-0.12919	0.13894	0.22764	0.67635	0.66978	2.7559	0.41389;
 
-                /* Remove this when doing the whole swarm */
-                v0 = -.12919;
-                v1 = .13894;
-                v2 = .22765;
-                v3 = .67635;
-                deltaT2Particle = .41389;
-                /* Remove this when doing the whole swarm */
+                if(evalTestParticle){
+                    v0 = -.12919;
+                    v1 = .13894;
+                    v2 = .22765;
+                    v3 = .67635;
+                    deltaT2Particle = .41389;
+                }
 
                 thrustArcIc tarc2 = thrustArcIc(vr2, vTheta2, r2, xi2PreTarc2);
                 dense_stepper_type tarc2Stepper = make_dense_output( 1.0e-6 , 1.0e-6 , runge_kutta_dopri5< state_type >() );
                 double t_start2 = 0.0 , t_end2 = deltaT2Particle, dt=initialStepSize;
                 state_type inoutTarc2 = { tarc2.vrInitial, tarc2.vThetaInital, tarc2.rInitial, tarc2.xiInital};
                 thrustArc2EOM sys2 = thrustArc2EOM(ub, v0, v1, v2, v3, fuel, deltaT1Particle );
-                integrate_const( tarc1Stepper , sys2 , inoutTarc2 , t_start2 , t_end2 , dt );
+                integrate_adaptive( tarc1Stepper , sys2 , inoutTarc2 , t_start2 , t_end2 , dt );
 
                 double vrFinal = inoutTarc2[0];
                 double vThetaFinal = inoutTarc2[1];

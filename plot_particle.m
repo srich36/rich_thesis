@@ -1,4 +1,4 @@
-particlesB2 = [ -0.094683	0.088429	-0.015286	0.56713	-0.12919	0.13894	0.22764	0.67635	0.66978	2.7559	0.41389;
+particlesB2 = [ -0.1901198028497241	1	-0.04834424815088992	-1	-0.0003163896310721081	-0.3263155003733011	0.8848431828601635	-0.09326100639757344	0.6709061443951977	2.76405176917629	0.4132477279882463;
     0.16869	-0.7152	0.13536	1	0.13758	-0.38264	-1	0.28981	0.67163	2.7975	0.41235;
     0.024413	0.24366	0.032103	-0.43868	0.1351	-0.74577	0.41254	-0.3803	0.67002	2.7597	0.41335 ];
 
@@ -34,8 +34,8 @@ JBestValuesB10 = [ 1.6466 1.6791 1.6554 ];
 
 
 
-particles = particlesB10;
-JBestValues = JBestValuesB10;
+particles = particlesB2;
+JBestValues = JBestValuesB2;
 
 partSize = size(particles);
 numParticles = partSize(1);
@@ -63,7 +63,7 @@ for numPart = 1:numParticles
     delta2 = v0+v1.*tminust2+v2.*tminust2.^2+v3.*tminust2.^3;
     
     subplot(2,1,1);
-    plot(t1, delta1, '-o');
+    plot(t1, rad2deg(delta1), '-o');
     title("Thrust arc 1 angle B=10");
     ylabel("Angle (radians)");
     xlabel("Time (TU)");
@@ -73,7 +73,7 @@ for numPart = 1:numParticles
     hold on;
     
     subplot(2,1,2);
-    plot(tminust2, delta2, '-o');
+    plot(tminust2, rad2deg(delta2), '-o');
     title("Thrust arc 2 angle B=4");
     ylabel("Angle (radians)");
     xlabel("Time (TU)");

@@ -1,3 +1,6 @@
 octave-workspace
+c++/build
+*.mat
+c++/.vscode/settings.json
 *.swp
 *.m~

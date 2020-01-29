@@ -1,14 +1,17 @@
 clc; clear all; close;
+%warning("on");
 warning("off");
 
+%%TOLERANCES AT 1E-9 AND 1E-9%%
+absTol =  1e-9;
+relTol = 1e-9;
+odeOpts = odeset('RelTol',relTol,'AbsTol', absTol);
 
-%Bad one
-testParticle = [-0.856580908970521,-0.928947964866100,-0.532194537192831,-0.410209473732025,-0.0110478865577260,-0.654732028329036,0.937910086713157,-0.964208556080876,1.91880746165091,4.43391078133062,0.581192538349102 ];
-
+testParticle = [ 0.1793388403978833	-0.8666167293262341	0.9191858318050022	-0.03751637123140417	0.01516904721637628	0.3782818408262493	-0.467870454436066	-1	0.6724822850591763	2.821471317903069	0.4106645490059094 ];
 %Good one
-%testParticle = [    -1.0000    0.1971    1.0000    0.9083   -0.3037   -1.0000    0.4753   -1.0000    0.7950    2.6223    0.4526 ];
+%testParticle = [ -0.01688571838897738	0.09587006665201843	-0.7129715153615238	0.8309410641294435	0.1915107672508798	-0.7028940222556719	-0.4393799017564173	0.6916400209722409	0.6702618694967299	2.825282566477961	0.4135842958459761 ] ;
 
-evalTestParticle = false;
+evalTestParticle = true;
 
 cyclesBeforeHydrateAgain = 10;
 cyclesBeforeHydrateAgainValue = 10;
@@ -17,7 +20,7 @@ resetVelocityTerm = [ 0 0 0 0 0 0 0 0 0 0 0 ];
 debug = false;
 debugPSO = false;
 rehydrate = false;
-graphValuesOverIterations = true;
+graphValuesOverIterations = false;
 %colorValues = [ 'bo-', 'ro-', 'yo-', 'go-', 'co-' ];
 
 averageJThresholdPercent = .1;
@@ -32,6 +35,7 @@ displayIterationNum = false;
 displayExecutionNum = true;
 displayPsoIterationNumber = true;
 displayGlobalBestPerPSOIteration = true;
+plotThrustArcs = true;
 
 badResultPenalty = 100000;
 
@@ -64,12 +68,19 @@ ParticleUB = [ UBxi, UBxi, UBxi, UBxi, UBv, UBv, UBv, UBv, UBt1, UBdeltaE, UBdel
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%    Particle Params     %%
-numExecutions=5; numPsoIterations=1;
-numParticles = 110; numUnknowns = 11; numIterations = 25;
+numExecutions=1; numPsoIterations=1;
+numParticles = 110; numUnknowns = 11; numIterations = 1000;
 %%    Particle Params     %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 options = odeset('RelTol',1e-8,'AbsTol',1e-10);
 
+thurstArcFigFilename = 'figures/thrustArcs.fig';
+
+if plotThrustArcs
+    if isfile(thurstArcFigFilename)
+        openfig('figures/thrustArcs.fig'); 
+    end
+end
 
 rehydrateString = 'rehydrate';
 
@@ -207,7 +218,7 @@ for executionNum=1:numExecutions
                 tSpan = [0 deltaT1Particle];
                 xi0 = particle(1);
                 %Initial conditions are for vr, vtheta, r, psi
-                [t,y] = ode45(@(t,y) eomSolver1(t,y,ub, c, n0, xi0, particle(2), particle(3), particle(4)),tSpan, icThurstArc1);
+                [t,y] = ode45(@(t,y) eomSolver1(t,y,ub, c, n0, xi0, particle(2), particle(3), particle(4)),tSpan, icThurstArc1, odeOpts);
                 vr1 = y(end, 1);
                 vTheta1 = y(end, 2);
                 r1 = y(end, 3);
@@ -248,7 +259,6 @@ for executionNum=1:numExecutions
 
 
                     deltaE = particle(10);
-
                     eccAnomaly2 = eccAnamoly1+deltaE;
 
                     %Equation 61
@@ -301,7 +311,7 @@ for executionNum=1:numExecutions
                     iC2 = [ vr2; vtheta2; r2; xi2 ];
                     t2 = deltaT1Particle+coastingTimeInterval;
                     tSpan2 = [ t2 t2+deltaT2Particle ];
-                    [t,thArc2Results] = ode45(@(t,y) eomSolver2(t,y,ub, c, n0, deltaT1Particle, t2, particle(5), particle(6), particle(7), particle(8)),tSpan2, iC2);
+                    [t,thArc2Results] = ode45(@(t,y) eomSolver2(t,y,ub, c, n0, deltaT1Particle, t2, particle(5), particle(6), particle(7), particle(8)),tSpan2, iC2, odeOpts);
 
                     vrFinal = thArc2Results(end, 1);
                     vThetaFinal = thArc2Results(end, 2);
@@ -438,6 +448,50 @@ for executionNum=1:numExecutions
         if displayGlobalBestPerPSOIteration
             fprintf("Global best for PSO iteration %f is %f\n", psoIteration, globalBestValue);
         end
+        
+        if plotThrustArcs
+            
+            p = aCoast*(1-eCoast^2);
+            xiCoast = xi1:.01:xiFinal;
+            trueAnamolyCoast = trueAnamoly1:.01:trueAnamoly2;
+
+
+            rCoastIndex = 1;
+            for trueAnamoly = trueAnamolyCoast
+
+                rCoast(rCoastIndex) = aCoast*(1-eCoast^2)/(1+eCoast*cos(trueAnamoly));
+                rCoastIndex=rCoastIndex+1;
+            end
+            
+            xiCoast = linspace(xi1, xiFinal, rCoastIndex-1);
+            
+            xiValues = 0:.01:2*pi;
+            rIndex = 1;
+            
+            
+            for xi=xiValues
+                rInitial(rIndex) = 1;
+                rFinal(rIndex) = Beta;
+                rIndex = rIndex+1;
+            end
+            
+            rFirstArc = y(:,3)';
+            rLastArc = thArc2Results(:,3)';
+            
+            thetaFirstArc = y(:,4)';
+            thetaLastArc = thArc2Results(:,4)';
+            rValues = horzcat(rFirstArc, rCoast, rLastArc);
+            thetaValues = horzcat(thetaFirstArc, xiCoast, thetaLastArc);
+            
+            polarplot(xiValues, rInitial);
+            hold on;
+            polarplot(thetaValues, rValues);
+            hold on;
+            polarplot(xiValues, rFinal);
+            title("Optimal transfer trajectory (Beta=2)");
+            legend("Initial orbit", "Transfer Trajectory", "Final orbit");
+            
+        end
     end
     executionTime = toc;
     
@@ -449,9 +503,9 @@ for executionNum=1:numExecutions
         hold on;
         legend('Run 1', 'Run 2', 'Run 3', 'Run 4', 'Run 5');
     end
-    
+    disp(globalBestParticlePerExecution);
     csvData = horzcat(numParticles, numIterations, globalBestValuePerExecution, executionTime, globalBestParticlePerExecution);
-    dlmwrite(resultsFileName,csvData,'-append');
+    dlmwrite(resultsFileName,csvData,'-append', 'precision', 16);
 
     
 end
