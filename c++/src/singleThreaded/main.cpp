@@ -175,7 +175,7 @@ public:
 
 void allocateSwarm(double *swarm, int numParticles, int numUnknowns, particleBounds, particleBounds );
 void printSwarm(double *swarm, int, int);
-void printParticleBests(double *, int);
+void printParticleBestValues(double *, int);
 int indexConversion(int, int, int);
 double randNumberPSO(double, double);
 
@@ -499,14 +499,17 @@ int main(){
 
 
            }
-           delete globalBestParticle;
-            delete swarm;
-            delete particlePersonalBestValues;
-            delete particlePersonalBestParticles;
-            delete costFunctionVals;
-            delete particleVelocities;
+
+           //Update swarm here
+           printParticleBestValues(costFunctionVals, numParticles);
 
         }
+        delete globalBestParticle;
+        delete swarm;
+        delete particlePersonalBestValues;
+        delete particlePersonalBestParticles;
+        delete costFunctionVals;
+        delete particleVelocities;
 
 
     }
@@ -529,12 +532,16 @@ void printSwarm(double *swarm, int numParticles, int numUnknowns){
     cout << swarmPrintString << endl;
 }
 
-void printParticleBests(double* particleBests, int numParticles){
+void printParticleBestValues(double* particleValues, int numParticles){
     string particleBestsString = "\n***************PARTICLE BESTS**********\n";
+    int lineBreakCount = 0;
     cout << particleBestsString << endl;
     for(int i=0; i < numParticles; i++){
-        cout << particleBests[i] <<" ";
+        cout << particleValues[i] <<" ";
+        lineBreakCount++;
+        if(lineBreakCount % 6 == 0) cout << endl;
     }
+    cout << particleBestsString << endl;
 }
 
 void allocateSwarm(double *swarm, int numParticles, int numUnknowns, particleBounds lowerBounds, particleBounds upperBounds){
