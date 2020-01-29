@@ -12,6 +12,10 @@ using namespace std;
 using namespace boost::numeric::odeint;
 
 typedef std::vector< double > state_type;
+typedef boost::numeric::odeint::result_of::make_dense_output<
+                runge_kutta_dopri5< state_type > >::type dense_stepper_type;
+
+const double MIN_STEP_SIZE = 7.105427e-15;
 bool debug = true, outputParticleParams = true, evalTestParticle = false;
 
 
@@ -80,6 +84,31 @@ struct thrustArcIc{
         rInitial = r;
         xiInital = xi;
     }
+};
+
+class timeStepObserver {
+
+    private:
+        double prevTime, currTime, timeStep;
+        int numSteps;
+    public:
+        timeStepObserver(double initialTimeStep){ 
+            this->prevTime = 0;
+            this->currTime = 0;
+            this->numSteps = 0;
+            this->timeStep = initialTimeStep;
+        }
+
+        void operator()( const state_type &x , double t ){
+            numSteps++;
+            swap(prevTime, currTime);
+            currTime = t;
+            timeStep = currTime-prevTime;
+            cout << timeStep << endl;
+            if(timeStep < MIN_STEP_SIZE && currTime != 0){
+                throw runtime_error("Minimum step size reached");
+            }
+        }
 };
 
 class thrustArc1EOM {
@@ -280,8 +309,7 @@ int main(){
             state_type inoutTarc1 = { tarc1.vrInitial, tarc1.vThetaInital, tarc1.rInitial, tarc1.xiInital};
             double t_start1 = 0.0 , t_end1 = deltaT1Particle, dt=initialStepSize;
             //[ dense_output_detail_generation1
-            typedef boost::numeric::odeint::result_of::make_dense_output<
-                runge_kutta_dopri5< state_type > >::type dense_stepper_type;
+
 
             /*
                 @parameter absolute error tolerance
@@ -302,11 +330,12 @@ int main(){
             thrustArc1EOM sys1 = thrustArc1EOM(ub, xi0, xi1, xi2, xi3, fuel );
 
             try {
-            integrate_adaptive( tarc1Stepper , sys1 , inoutTarc1 , t_start1 , t_end1 , dt );
+            integrate_adaptive( tarc1Stepper , sys1 , inoutTarc1 , t_start1 , t_end1 , dt, timeStepObserver(dt) );
             }
-            catch(exception const& e){
-                cout << "Integration timed out" << endl;
+            catch( ... ){
+                cout << "Test" << endl;
             }
+            cout << "After catch block " << endl;
 
             double vr1 = inoutTarc1[0];
             double vTheta1 = inoutTarc1[1];
@@ -411,7 +440,8 @@ int main(){
                 double t_start2 = 0.0 , t_end2 = deltaT2Particle, dt=initialStepSize;
                 state_type inoutTarc2 = { tarc2.vrInitial, tarc2.vThetaInital, tarc2.rInitial, tarc2.xiInital};
                 thrustArc2EOM sys2 = thrustArc2EOM(ub, v0, v1, v2, v3, fuel, deltaT1Particle );
-                integrate_adaptive( tarc1Stepper , sys2 , inoutTarc2 , t_start2 , t_end2 , dt );
+                integrate_adaptive( tarc2Stepper , sys2 , inoutTarc2 , t_start2 , t_end2 , dt );
+                cout << "\n\n\nCurrent time step is: " << tarc2Stepper.current_time_step() << endl;
 
                 double vrFinal = inoutTarc2[0];
                 double vThetaFinal = inoutTarc2[1];
