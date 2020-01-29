@@ -16,13 +16,13 @@ typedef boost::numeric::odeint::result_of::make_dense_output<
                 runge_kutta_dopri5< state_type > >::type dense_stepper_type;
 
 const double MIN_STEP_SIZE = 7.105427e-15;
-bool debug = true, outputParticleParams = true, evalTestParticle = false;
+bool debug = false, outputParticleParams = false, evalTestParticle = false, outputWarnings = false;
 
 
 /*
 ************Configuration params************
 */
-const int numExecutions=1, numPsoIterations=1, numParticles = 1;
+const int numExecutions=1, numPsoIterations=1, numParticles = 110;
 const int numUnknowns = 11, numIterations = 1;
 /*
 ************Configuration params************
@@ -104,7 +104,6 @@ class timeStepObserver {
             swap(prevTime, currTime);
             currTime = t;
             timeStep = currTime-prevTime;
-            cout << timeStep << endl;
             if(timeStep < MIN_STEP_SIZE && currTime != 0){
                 throw runtime_error("Minimum step size reached");
             }
@@ -332,10 +331,11 @@ int main(){
             try {
             integrate_adaptive( tarc1Stepper , sys1 , inoutTarc1 , t_start1 , t_end1 , dt, timeStepObserver(dt) );
             }
-            catch( ... ){
-                cout << "Test" << endl;
+            catch( const runtime_error& error ){
+                if(outputWarnings){
+                    cout << "On first integration: " << error.what() << endl;
+                }
             }
-            cout << "After catch block " << endl;
 
             double vr1 = inoutTarc1[0];
             double vTheta1 = inoutTarc1[1];
@@ -440,9 +440,14 @@ int main(){
                 double t_start2 = 0.0 , t_end2 = deltaT2Particle, dt=initialStepSize;
                 state_type inoutTarc2 = { tarc2.vrInitial, tarc2.vThetaInital, tarc2.rInitial, tarc2.xiInital};
                 thrustArc2EOM sys2 = thrustArc2EOM(ub, v0, v1, v2, v3, fuel, deltaT1Particle );
-                integrate_adaptive( tarc2Stepper , sys2 , inoutTarc2 , t_start2 , t_end2 , dt );
-                cout << "\n\n\nCurrent time step is: " << tarc2Stepper.current_time_step() << endl;
 
+                try {
+                    integrate_adaptive( tarc2Stepper , sys2 , inoutTarc2 , t_start2 , t_end2 , dt, timeStepObserver(dt) );
+                }catch( const runtime_error& error ){
+                    if(outputWarnings){
+                        cout << "On second integration: " << error.what() << endl;
+                    }
+                }
                 double vrFinal = inoutTarc2[0];
                 double vThetaFinal = inoutTarc2[1];
                 double rFinal = inoutTarc2[2];
