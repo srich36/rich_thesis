@@ -7,6 +7,7 @@
 #include <time.h>
 #include <boost/array.hpp>
 #include <boost/numeric/odeint.hpp>
+#include <fstream>
 
 using namespace std;
 using namespace boost::numeric::odeint;
@@ -22,10 +23,10 @@ double testParticle[] = {0.173945744856986, -0.842356233175261, 0.99017948337589
 /*
 ************Configuration params************
 */
-const int numExecutions = 1, numPsoIterations = 1;
+const int numExecutions = 30, numPsoIterations = 1;
 const int numUnknowns = 11;
-int numParticles = 110;
-int numIterations = 100;
+int numParticles = 300;
+int numIterations = 500;
 /*
 ************Configuration params************
 */
@@ -268,8 +269,8 @@ const double UBt1 = 3, UBdeltaE = 2 * M_PI, UBdeltat2 = 3, UBxi = 1, UBv = 1;
 typedef std::vector<double> state_type;
 
 //Tolerances
-const double absoluteTolerance = 1.0e-14;
-const double relTolerance = 1.0e-14;
+const double absoluteTolerance = 1.0e-9;
+const double relTolerance = 1.0e-9;
 
 //Initial step size
 const double initialStepSize = .0001;
@@ -277,6 +278,9 @@ const double initialStepSize = .0001;
 int main()
 {
     /*PSO Configuration params*/
+
+    std::ofstream resultsFile;
+    resultsFile.open ("results3.csv", ios::app);
 
     srand(time(0));
     int Beta = 2;
@@ -364,6 +368,7 @@ int main()
             //We can parallelize here
             for (int particleNum = 0; particleNum < numParticles; particleNum++)
             {
+
 
                 try
                 {
@@ -678,6 +683,8 @@ int main()
         cout << setprecision(16);
         printValues(globalBestParticle, numUnknowns, string("Global Best Particle is: "), numUnknowns);
         cout << "The global best value is: " << globalBestValue << endl;
+
+        resultsFile << globalBestValue << "\n";
 
         delete globalBestParticle;
         delete swarm;
