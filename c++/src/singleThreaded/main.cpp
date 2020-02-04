@@ -8,8 +8,10 @@
 #include <boost/array.hpp>
 #include <boost/numeric/odeint.hpp>
 
+
 using namespace std;
 using namespace boost::numeric::odeint;
+
 
 typedef std::vector< double > state_type;
 typedef boost::numeric::odeint::result_of::make_dense_output<
@@ -226,6 +228,7 @@ const double initialStepSize = .0001;
 
 int main(){
     /*PSO Configuration params*/
+
     srand(time(0));
     int Beta = 2;
 
@@ -252,6 +255,7 @@ int main(){
         vector<double> globalBestValuePerIteration;
         double *globalBestParticle = new double[numUnknowns];
 
+        /*Start timer here */
 
         /*
             Allocate particles
@@ -505,6 +509,7 @@ int main(){
            printSwarm(swarm, numParticles, numUnknowns);
 
         }
+
         delete globalBestParticle;
         delete swarm;
         delete particlePersonalBestValues;
