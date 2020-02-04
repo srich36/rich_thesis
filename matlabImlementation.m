@@ -1,13 +1,13 @@
 clc; clear all; close;
 %warning("on");
-warning("off");
+warning("on");
 
 %%TOLERANCES AT 1E-9 AND 1E-9%%
 absTol =  1e-9;
 relTol = 1e-9;
 odeOpts = odeset('RelTol',relTol,'AbsTol', absTol);
 
-testParticle = [ 0.1793388403978833	-0.8666167293262341	0.9191858318050022	-0.03751637123140417	0.01516904721637628	0.3782818408262493	-0.467870454436066	-1	0.6724822850591763	2.821471317903069	0.4106645490059094 ];
+testParticle = [ 0.1331822315078318 0.3724568898467611 -0.4818141494007626 -0.04354161971283068 0.7058604545119365 -0.822373120999918 0.01269790372641579 -0.4874140579545114 0.6852335161891313 3.047226880392661 0.4557876680674198 ];
 %Good one
 %testParticle = [ -0.01688571838897738	0.09587006665201843	-0.7129715153615238	0.8309410641294435	0.1915107672508798	-0.7028940222556719	-0.4393799017564173	0.6916400209722409	0.6702618694967299	2.825282566477961	0.4135842958459761 ] ;
 
@@ -29,13 +29,13 @@ numPrevIterationsAvgJ = 10;
 
 rehydratePercentage = .33;
 displayCostFunctionValue = false;
-displayAverageCostValuePerIteration = false;
+displayAverageCostValuePerIteration = true;
 displayGlobalBestPerIteration = true;
 displayIterationNum = false;
 displayExecutionNum = true;
 displayPsoIterationNumber = true;
 displayGlobalBestPerPSOIteration = true;
-plotThrustArcs = true;
+plotThrustArcs = false;
 
 badResultPenalty = 100000;
 
@@ -69,7 +69,7 @@ ParticleUB = [ UBxi, UBxi, UBxi, UBxi, UBv, UBv, UBv, UBv, UBt1, UBdeltaE, UBdel
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%    Particle Params     %%
 numExecutions=1; numPsoIterations=1;
-numParticles = 110; numUnknowns = 11; numIterations = 1000;
+numParticles = 110; numUnknowns = 11; numIterations = 100;
 %%    Particle Params     %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 options = odeset('RelTol',1e-8,'AbsTol',1e-10);
@@ -389,11 +389,11 @@ for executionNum=1:numExecutions
             end
 
             % Update particle velocity
+            cI = (1+rand)/2.0;
+            cC = 1.49445*rand;
+            cS = 1.49445*rand;
             for i = 1:numParticles
                 %Update particles
-                cI = (1+rand)/2;
-                cC = 1.49445*rand;
-                cS = 1.49445*rand;
 
                 %Particle Velocity term
                 cITerm(i,:) = cI*velocities(i, :);
