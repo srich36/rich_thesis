@@ -8,6 +8,8 @@
 #include <boost/array.hpp>
 #include <boost/numeric/odeint.hpp>
 #include <fstream>
+#include <time.h>
+#include <sys/time.h>
 
 using namespace std;
 using namespace boost::numeric::odeint;
@@ -17,15 +19,15 @@ typedef boost::numeric::odeint::result_of::make_dense_output<
     runge_kutta_dopri5<state_type>>::type dense_stepper_type;
 
 const double MIN_STEP_SIZE = 7.105427e-15;
-bool debug = false, outputParticleParams = false, evalTestParticle = false, outputWarnings = false;
+bool debug = false, outputParticleParams = false, evalTestParticle = true, outputWarnings = false;
 double testParticle[] = {0.173945744856986, -0.842356233175261, 0.990179483375890, -0.546457301377733, 0.340690252916427, 0.700827096907570, -0.281072683912077, 0.393928377306378, 0.684692699088479, 3.12461986729737, 0.451065842770464};
 
 /*
 ************Configuration params************
 */
-const int numExecutions = 30, numPsoIterations = 1;
+const int numExecutions = 1, numPsoIterations = 1;
 const int numUnknowns = 11;
-int numParticles = 300;
+int numParticles = 110;
 int numIterations = 500;
 /*
 ************Configuration params************
@@ -231,6 +233,8 @@ int indexConversion(int, int, int);
 double randNumberPSO(double, double);
 void setParticle(double *, double *, int, int);
 void setGlobalBestParticle(double *, double *, int, int);
+double getWallTime();
+double getCPUTime();
 
 //double testParticle[] = {    -1.0000    0.1971    1.0000    0.9083   -0.3037   -1.0000    0.4753   -1.0000    0.7950    2.6223    0.4526  };
 
@@ -280,7 +284,7 @@ int main()
     /*PSO Configuration params*/
 
     std::ofstream resultsFile;
-    resultsFile.open ("results3.csv", ios::app);
+    resultsFile.open("results4.csv", ios::app);
 
     srand(time(0));
     int Beta = 2;
@@ -318,6 +322,8 @@ int main()
         double *globalBestParticle = new double[numUnknowns];
 
         /*Start timer here */
+        double wall0 = getWallTime();
+        double cpu0 = getCPUTime();
 
         /*
             Allocate particles
@@ -368,7 +374,6 @@ int main()
             //We can parallelize here
             for (int particleNum = 0; particleNum < numParticles; particleNum++)
             {
-
 
                 try
                 {
@@ -566,7 +571,8 @@ int main()
                 }
                 catch (MinStepSizeException &exception)
                 {
-                    if(outputWarnings){
+                    if (outputWarnings)
+                    {
                         cout << "Minimum step size reached" << endl;
                     }
                     costFunctionVals[particleNum] = badResultPenalty;
@@ -613,9 +619,6 @@ int main()
             double *particleUBarray = particleUB.getBounds();
             double *particleLBarray = particleLB.getBounds();
 
-            //printValues(particlePersonalBestParticles, numUnknowns*numParticles, string("Particle personal best"), numUnknowns);
-            //printSwarm(swarm, numParticles, numUnknowns);
-
             for (int i = 0; i < numParticles; i++)
             {
                 for (int j = 0; j < numUnknowns; j++)
@@ -625,12 +628,8 @@ int main()
                     cCTerm = cC * (particlePersonalBestParticles[particleVariableIndex] - swarm[particleVariableIndex]);
                     cSTerm = cS * (globalBestParticle[j] - swarm[particleVariableIndex]);
                     totalVelocityTerm = cITerm + cCTerm + cSTerm;
-                    /* if(i == numParticles - 1 && j==3){
-                       cout << "cI Term is " << cITerm << endl;
-                       cout << "cC Term is " << cCTerm << endl;
-                       cout << "cS Term is " << cSTerm << endl;
-                       cout << "totalVelocityTerm is " << totalVelocityTerm << endl;
-                   } */
+
+                    //Velocity bounds are correct
                     if (totalVelocityTerm < velLBarray[j])
                     {
                         totalVelocityTerm = velLBarray[j];
@@ -652,6 +651,7 @@ int main()
             {
                 for (int j = 0; j < numUnknowns; j++)
                 {
+                    //Position bounds are correct
                     int particleVariableIndex = indexConversion(i, j, numUnknowns);
                     swarm[particleVariableIndex] += particleVelocities[particleVariableIndex];
                     if (swarm[particleVariableIndex] < posLBarray[j])
@@ -679,10 +679,19 @@ int main()
                 cout << "Cost function value average for iteration " << iterationNum + 1 << " is " << avg;
             }
         }
-        printSwarm(swarm, numParticles, numUnknowns);
+
         cout << setprecision(16);
         printValues(globalBestParticle, numUnknowns, string("Global Best Particle is: "), numUnknowns);
         cout << "The global best value is: " << globalBestValue << endl;
+
+        double wallFinal = getWallTime();
+        double cpuFinal = getCPUTime();
+
+        double wallElapsed = wallFinal - wall0;
+        double cpuElapsed = cpuFinal - cpu0;
+
+        cout << "Wall Time = " << wallElapsed << " seconds" << endl;
+        cout << "CPU Time  = " << cpuElapsed << " seconds" << endl;
 
         resultsFile << globalBestValue << "\n";
 
@@ -764,4 +773,19 @@ void setGlobalBestParticle(double *globalBestParticle, double *swarm, int numPar
         globalBestParticle[i] = swarm[indexConversion(numParticle, i, numUnknowns)];
     }
     return;
+}
+
+double getWallTime()
+{
+    struct timeval time;
+    if (gettimeofday(&time, NULL))
+    {
+        //  Handle error
+        return 0;
+    }
+    return (double)time.tv_sec + (double)time.tv_usec * .000001;
+}
+double getCPUTime()
+{
+    return (double)clock() / CLOCKS_PER_SEC;
 }
