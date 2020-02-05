@@ -19,7 +19,7 @@ typedef boost::numeric::odeint::result_of::make_dense_output<
     runge_kutta_dopri5<state_type>>::type dense_stepper_type;
 
 const double MIN_STEP_SIZE = 7.105427e-15;
-bool debug = false, outputParticleParams = false, evalTestParticle = true, outputWarnings = false;
+bool debug = false, outputParticleParams = false, evalTestParticle = false, outputWarnings = false;
 double testParticle[] = {0.173945744856986, -0.842356233175261, 0.990179483375890, -0.546457301377733, 0.340690252916427, 0.700827096907570, -0.281072683912077, 0.393928377306378, 0.684692699088479, 3.12461986729737, 0.451065842770464};
 
 /*
@@ -235,6 +235,7 @@ void setParticle(double *, double *, int, int);
 void setGlobalBestParticle(double *, double *, int, int);
 double getWallTime();
 double getCPUTime();
+void writeToFile(std::ofstream &, double, double, double, double *, int);
 
 //double testParticle[] = {    -1.0000    0.1971    1.0000    0.9083   -0.3037   -1.0000    0.4753   -1.0000    0.7950    2.6223    0.4526  };
 
@@ -284,7 +285,7 @@ int main()
     /*PSO Configuration params*/
 
     std::ofstream resultsFile;
-    resultsFile.open("results4.csv", ios::app);
+    resultsFile.open("results6.csv", ios::app);
 
     srand(time(0));
     int Beta = 2;
@@ -642,10 +643,6 @@ int main()
                 }
             }
 
-            //printValues(particlePersonalBestValues, numParticles, string("Particle Best Values"), numParticles);
-            //printValues(particleVelocities, numParticles*numUnknowns, string("Particle Velocities"), numUnknowns);
-            //printValues(globalBestParticle, numUnknowns, string("Global Best Particle is"), numUnknowns);
-
             //Update position here
             for (int i = 0; i < numParticles; i++)
             {
@@ -664,10 +661,6 @@ int main()
                     }
                 }
             }
-            //printSwarm(swarm, numParticles, numUnknowns);
-
-            //cout << "Global Best Value is: " << globalBestValue << endl;
-            //cout << "\n\n\n\n\n" << endl;
             if (displayCostFunctionAverages)
             {
                 double avg = 0;
@@ -693,10 +686,15 @@ int main()
         cout << "Wall Time = " << wallElapsed << " seconds" << endl;
         cout << "CPU Time  = " << cpuElapsed << " seconds" << endl;
 
+        writeToFile(resultsFile, wallElapsed, cpuElapsed, globalBestValue, globalBestParticle, numUnknowns);
+
         resultsFile << globalBestValue << "\n";
 
+        if (!evalTestParticle)
+        {
+            delete swarm;
+        }
         delete globalBestParticle;
-        delete swarm;
         delete particlePersonalBestValues;
         delete particlePersonalBestParticles;
         delete costFunctionVals;
@@ -785,7 +783,16 @@ double getWallTime()
     }
     return (double)time.tv_sec + (double)time.tv_usec * .000001;
 }
+
 double getCPUTime()
 {
     return (double)clock() / CLOCKS_PER_SEC;
+}
+
+void writeToFile(ofstream &fileStream, double wallElapsed, double cpuElapsed, double globalBestValue, double *globalBestParticle, int numUnknowns)
+{
+    fileStream << wallElapsed << "," << cpuElapsed << "," << globalBestValue;
+    for(int i =0; i < numUnknowns; i++){
+        fileStream << "," << globalBestParticle[i];
+    }
 }
