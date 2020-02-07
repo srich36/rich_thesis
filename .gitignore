@@ -4,3 +4,4 @@ c++/build
 c++/.vscode/settings.json
 *.swp
 *.m~
+*.o
