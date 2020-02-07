@@ -1,17 +1,17 @@
 clc; clear all; close;
 %warning("on");
-warning("on");
+warning("off");
 
 %%TOLERANCES AT 1E-9 AND 1E-9%%
 absTol =  1e-9;
 relTol = 1e-9;
 odeOpts = odeset('RelTol',relTol,'AbsTol', absTol);
 
-testParticle = [ 0.1331822315078318 0.3724568898467611 -0.4818141494007626 -0.04354161971283068 0.7058604545119365 -0.822373120999918 0.01269790372641579 -0.4874140579545114 0.6852335161891313 3.047226880392661 0.4557876680674198 ];
+testParticle = [ -0.1113920784215116 0.5357357958675356 -0.24180056771788 0.687211212839945 -0.4531538117721277 0.2446802158252827 1 -0.509966781944775 0.6769918348448826 2.533188950247312 0.4366475759793644   ];
 %Good one
 %testParticle = [ -0.01688571838897738	0.09587006665201843	-0.7129715153615238	0.8309410641294435	0.1915107672508798	-0.7028940222556719	-0.4393799017564173	0.6916400209722409	0.6702618694967299	2.825282566477961	0.4135842958459761 ] ;
 
-evalTestParticle = true;
+evalTestParticle = false;
 
 cyclesBeforeHydrateAgain = 10;
 cyclesBeforeHydrateAgainValue = 10;
@@ -31,7 +31,7 @@ rehydratePercentage = .33;
 displayCostFunctionValue = false;
 displayAverageCostValuePerIteration = true;
 displayGlobalBestPerIteration = true;
-displayIterationNum = false;
+displayIterationNum = true;
 displayExecutionNum = true;
 displayPsoIterationNumber = true;
 displayGlobalBestPerPSOIteration = true;
@@ -69,7 +69,7 @@ ParticleUB = [ UBxi, UBxi, UBxi, UBxi, UBv, UBv, UBv, UBv, UBt1, UBdeltaE, UBdel
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%    Particle Params     %%
 numExecutions=1; numPsoIterations=1;
-numParticles = 110; numUnknowns = 11; numIterations = 100;
+numParticles = 10; numUnknowns = 11; numIterations = 10;
 %%    Particle Params     %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 options = odeset('RelTol',1e-8,'AbsTol',1e-10);
@@ -84,21 +84,21 @@ end
 
 rehydrateString = 'rehydrate';
 
-mkdir './results'
+mkdir '../results'
 
 
 betaDirString = strcat('beta',num2str(Beta));
-mkdir(fullfile('.', 'results', betaDirString));
+mkdir(fullfile('..', 'results', betaDirString));
 if rehydrate
-    mkdir(fullfile('.', 'results', betaDirString, rehydrateString));
+    mkdir(fullfile('..', 'results', betaDirString, rehydrateString));
 end
 fileNameString = strcat('LoopNum',num2str(numPsoIterations), 'pNum', num2str(numParticles), 'Inum', num2str(numIterations),'r', num2str(rehydrate), '.csv');
 
 
 if ~rehydrate
-    resultsFileName=fullfile('.','results', betaDirString, fileNameString);
+    resultsFileName=fullfile('..','results', betaDirString, fileNameString);
 else 
-    resultsFileName=fullfile('.','results', betaDirString, rehydrateString, fileNameString);
+    resultsFileName=fullfile('..','results', betaDirString, rehydrateString, fileNameString);
 end
 
 if ~isfile(resultsFileName)
@@ -392,6 +392,8 @@ for executionNum=1:numExecutions
             cI = (1+rand)/2.0;
             cC = 1.49445*rand;
             cS = 1.49445*rand;
+            
+            
             for i = 1:numParticles
                 %Update particles
 

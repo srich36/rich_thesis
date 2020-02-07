@@ -1,5 +1,4 @@
 function dydt = eomSolver1(t,y,ub,c,n0, xi0, xi1, xi2, xi3)
-
     %this function is continuously called at each step
     delta = xi0+xi1*t+xi2*t^2+xi3*t^3;
     ratio = c*n0/(c-n0.*t);
