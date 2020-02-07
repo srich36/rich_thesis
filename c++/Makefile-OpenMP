@@ -1,0 +1,15 @@
+CC := -c++
+CFLAGS = -g -Wall
+TARGET = openMP
+TARGET_OUTPUT_DIR = build/openMP
+SRC = src/openMP/openMPmain.cpp
+
+all: $(TARGET)
+
+$(TARGET):
+	mkdir -p build/openMP
+	$(CC) $(CFLAGS) -o $(TARGET_OUTPUT_DIR)/$(TARGET) -fopenmp $(SRC)
+
+clean:
+	$(RM) $(TARGET_OUTPUT_DIR)/$(TARGET)
+
