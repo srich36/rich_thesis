@@ -20,7 +20,7 @@ typedef boost::numeric::odeint::result_of::make_dense_output<
 
 const double MIN_STEP_SIZE = 7.105427e-15;
 bool debug = false, outputParticleParams = false, evalTestParticle = false, outputWarnings = false;
-double testParticle[] = {0.173945744856986, -0.842356233175261, 0.990179483375890, -0.546457301377733, 0.340690252916427, 0.700827096907570, -0.281072683912077, 0.393928377306378, 0.684692699088479, 3.12461986729737, 0.451065842770464};
+double testParticle[] = {-0.6356245844181813, 0.6749135584289404, -0.3782733531510278, -0.1791742193502524, 0.2948498719982566, -0.2533456929439651, -0.9806058557165864, -0.1882857942679574, 0.7291294746670177, 3.083940333165867, 0.4104569474969907 };
 
 /*
 ************Configuration params************
@@ -274,8 +274,8 @@ const double UBt1 = 3, UBdeltaE = 2 * M_PI, UBdeltat2 = 3, UBxi = 1, UBv = 1;
 typedef std::vector<double> state_type;
 
 //Tolerances
-const double absoluteTolerance = 1.0e-9;
-const double relTolerance = 1.0e-9;
+const double absoluteTolerance = 1.0e-12;
+const double relTolerance = 1.0e-12;
 
 //Initial step size
 const double initialStepSize = .0001;
@@ -376,206 +376,222 @@ int main()
             for (int particleNum = 0; particleNum < numParticles; particleNum++)
             {
 
-                try
-                {
+                //Evaluate each particle here
+                double deltaT1Particle = swarm[indexConversion(particleNum, 8, numUnknowns)];
+                double xi0 = swarm[indexConversion(particleNum, 0, numUnknowns)];
+                double xi1 = swarm[indexConversion(particleNum, 1, numUnknowns)];
+                double xi2 = swarm[indexConversion(particleNum, 2, numUnknowns)];
+                double xi3 = swarm[indexConversion(particleNum, 3, numUnknowns)];
 
-                    //Evaluate each particle here
-                    double deltaT1Particle = swarm[indexConversion(particleNum, 8, numUnknowns)];
-                    double xi0 = swarm[indexConversion(particleNum, 0, numUnknowns)];
-                    double xi1 = swarm[indexConversion(particleNum, 1, numUnknowns)];
-                    double xi2 = swarm[indexConversion(particleNum, 2, numUnknowns)];
-                    double xi3 = swarm[indexConversion(particleNum, 3, numUnknowns)];
+                state_type inoutTarc1 = {tarc1.vrInitial, tarc1.vThetaInital, tarc1.rInitial, tarc1.xiInital};
+                double t_start1 = 0.0, t_end1 = deltaT1Particle, dt = initialStepSize;
+                //[ dense_output_detail_generation1
 
-                    state_type inoutTarc1 = {tarc1.vrInitial, tarc1.vThetaInital, tarc1.rInitial, tarc1.xiInital};
-                    double t_start1 = 0.0, t_end1 = deltaT1Particle, dt = initialStepSize;
-                    //[ dense_output_detail_generation1
-
-                    /*
+                /*
                 @parameter absolute error tolerance
                 @parameter relative error tolerance
             */
 
-                    dense_stepper_type tarc1Stepper = make_dense_output(absoluteTolerance, relTolerance, runge_kutta_dopri5<state_type>());
+                dense_stepper_type tarc1Stepper = make_dense_output(absoluteTolerance, relTolerance, runge_kutta_dopri5<state_type>());
 
-                    if (outputParticleParams)
-                    {
-                        cout << "xi0 is " << xi0 << endl;
-                        cout << "xi1 is " << xi1 << endl;
-                        cout << "xi2 is " << xi2 << endl;
-                        cout << "xi3 is " << xi3 << endl;
-                        cout << "Delta T1 particle is " << deltaT1Particle << endl
-                             << endl;
-                    }
+                if (outputParticleParams)
+                {
+                    cout << "xi0 is " << xi0 << endl;
+                    cout << "xi1 is " << xi1 << endl;
+                    cout << "xi2 is " << xi2 << endl;
+                    cout << "xi3 is " << xi3 << endl;
+                    cout << "Delta T1 particle is " << deltaT1Particle << endl
+                         << endl;
+                }
 
-                    thrustArc1EOM sys1 = thrustArc1EOM(ub, xi0, xi1, xi2, xi3, fuel);
+                thrustArc1EOM sys1 = thrustArc1EOM(ub, xi0, xi1, xi2, xi3, fuel);
 
-                    double vr1, vTheta1, r1, xi1PostTarc;
+                double vr1, vTheta1, r1, xi1PostTarc;
+                try
+                {
                     integrate_adaptive(tarc1Stepper, sys1, inoutTarc1, t_start1, t_end1, dt, timeStepObserver(dt));
                     vr1 = inoutTarc1[0];
                     vTheta1 = inoutTarc1[1];
                     r1 = inoutTarc1[2];
                     xi1PostTarc = inoutTarc1[3];
+                }
+                catch (MinStepSizeException &exception)
+                {
+                    vr1 = exception.getVr();
+                    vTheta1 = exception.getvTheta();
+                    r1 = exception.getR();
+                    xi1PostTarc = exception.getXi();
+                    if (outputWarnings)
+                    {
+                        cout << "Minimum step size reached in first integration" << endl;
+                    }
+                }
 
-                    double aCoast = ub * r1 / (2 * ub - r1 * (pow(vr1, 2) + pow(vTheta1, 2)));
-                    double eCoast = sqrt(1 - pow(r1, 2) * pow(vTheta1, 2) / (ub * aCoast));
+                double aCoast = ub * r1 / (2 * ub - r1 * (pow(vr1, 2) + pow(vTheta1, 2)));
+                double eCoast = sqrt(1 - pow(r1, 2) * pow(vTheta1, 2) / (ub * aCoast));
 
+                if (debug)
+                {
+                    cout << "vr1 is " << vr1 << endl;
+                    cout << "vTheta1 is " << vTheta1 << endl;
+                    cout << "r1 is " << r1 << endl;
+                    cout << "xi1 is " << xi1PostTarc << endl;
+                    cout << "aCoast is " << aCoast << endl;
+                    cout << "e Coast is " << eCoast << endl
+                         << endl;
+                }
+
+                if (aCoast > 0)
+                {
+                    double sinTrueAnamoly1 = vr1 / eCoast * sqrt(aCoast * (1 - pow(eCoast, 2)) / ub);
+                    double cosTrueAnamoly1 = vTheta1 / eCoast * sqrt(aCoast * (1 - pow(eCoast, 2)) / ub) - 1 / eCoast;
+                    double trueAnamoly1 = atan2(sinTrueAnamoly1, cosTrueAnamoly1);
+                    if (trueAnamoly1 < 0)
+                    {
+                        trueAnamoly1 = trueAnamoly1 + 2 * M_PI;
+                    }
+
+                    double sinEccAnomaly1 = sin(trueAnamoly1) * sqrt(1 - pow(eCoast, 2)) / (1 + eCoast * cosTrueAnamoly1);
+                    double cosEccAnomaly1 = (cos(trueAnamoly1) + eCoast) / (1 + eCoast * cosTrueAnamoly1);
+                    double eccAnamoly1 = atan2(sinEccAnomaly1, cosEccAnomaly1);
+                    if (eccAnamoly1 < 0)
+                    {
+                        eccAnamoly1 = eccAnamoly1 + 2 * M_PI;
+                    }
+
+                    double deltaE = swarm[indexConversion(particleNum, 9, numUnknowns)];
+
+                    double eccAnomaly2 = eccAnamoly1 + deltaE;
+
+                    double sinTrueAnamoly2 = sin(eccAnomaly2) * sqrt(1 - pow(eCoast, 2)) / (1 - eCoast * cos(eccAnomaly2));
+                    double cosTrueAnamoly2 = (cos(eccAnomaly2) - eCoast) / (1 - eCoast * cos(eccAnomaly2));
+
+                    double trueAnamoly2 = atan2(sinTrueAnamoly2, cosTrueAnamoly2);
+
+                    if (trueAnamoly2 < 0)
+                    {
+                        trueAnamoly2 = trueAnamoly2 + 2 * M_PI;
+                    }
+                    double coastingTimeInterval = sqrt(pow(aCoast, 3) / ub) * (eccAnomaly2 - eccAnamoly1 - eCoast * (sin(eccAnomaly2) - sin(eccAnamoly1)));
+
+                    //The first section is checked and working for good particles
                     if (debug)
                     {
-                        cout << "vr1 is " << vr1 << endl;
-                        cout << "vTheta1 is " << vTheta1 << endl;
-                        cout << "r1 is " << r1 << endl;
-                        cout << "xi1 is " << xi1PostTarc << endl;
-                        cout << "aCoast is " << aCoast << endl;
-                        cout << "e Coast is " << eCoast << endl
+                        cout << "True anamoly 1 is " << trueAnamoly1 << endl;
+                        cout << "Eccentric anamoly 1 is " << eccAnamoly1 << endl;
+                        cout << "Eccentric anamoly 2 is " << eccAnomaly2 << endl;
+                        cout << "True anamoly 2 is " << trueAnamoly2 << endl;
+                        cout << "Coasting time interval 2 is " << coastingTimeInterval << endl
                              << endl;
                     }
 
-                    if (aCoast > 0)
+                    double vr2 = sqrt(ub / (aCoast * (1 - pow(eCoast, 2)))) * eCoast * sin(trueAnamoly2);
+                    double vTheta2 = sqrt(ub / (aCoast * (1 - pow(eCoast, 2)))) * (1 + eCoast * cos(trueAnamoly2));
+                    double r2 = aCoast * (1 - pow(eCoast, 2)) / (1 + eCoast * cos(trueAnamoly2));
+                    double xi2PreTarc2 = xi1PostTarc + (trueAnamoly2 - trueAnamoly1);
+
+                    //This is checked and working
+                    if (debug)
                     {
-                        double sinTrueAnamoly1 = vr1 / eCoast * sqrt(aCoast * (1 - pow(eCoast, 2)) / ub);
-                        double cosTrueAnamoly1 = vTheta1 / eCoast * sqrt(aCoast * (1 - pow(eCoast, 2)) / ub) - 1 / eCoast;
-                        double trueAnamoly1 = atan2(sinTrueAnamoly1, cosTrueAnamoly1);
-                        if (trueAnamoly1 < 0)
-                        {
-                            trueAnamoly1 = trueAnamoly1 + 2 * M_PI;
-                        }
+                        cout << "vr2 is " << vr2 << endl;
+                        cout << "vTheta2 is " << vTheta2 << endl;
+                        cout << "r2 is " << r2 << endl;
+                        cout << "xi2 is " << xi2PreTarc2 << endl
+                             << endl;
+                    }
 
-                        double sinEccAnomaly1 = sin(trueAnamoly1) * sqrt(1 - pow(eCoast, 2)) / (1 + eCoast * cosTrueAnamoly1);
-                        double cosEccAnomaly1 = (cos(trueAnamoly1) + eCoast) / (1 + eCoast * cosTrueAnamoly1);
-                        double eccAnamoly1 = atan2(sinEccAnomaly1, cosEccAnomaly1);
-                        if (eccAnamoly1 < 0)
-                        {
-                            eccAnamoly1 = eccAnamoly1 + 2 * M_PI;
-                        }
+                    double deltaT2Particle = swarm[indexConversion(particleNum, 10, numUnknowns)];
+                    double v0 = swarm[indexConversion(particleNum, 4, numUnknowns)];
+                    double v1 = swarm[indexConversion(particleNum, 5, numUnknowns)];
+                    double v2 = swarm[indexConversion(particleNum, 6, numUnknowns)];
+                    double v3 = swarm[indexConversion(particleNum, 7, numUnknowns)];
 
-                        double deltaE = swarm[indexConversion(particleNum, 9, numUnknowns)];
+                    if (outputParticleParams)
+                    {
+                        cout << "v0 is " << v0 << endl;
+                        cout << "v1 is " << v1 << endl;
+                        cout << "v2 is " << v2 << endl;
+                        cout << "v3 is " << v3 << endl;
+                        cout << "deltaE is " << deltaE << endl;
+                        cout << "deltaT2 is " << deltaT2Particle << endl
+                             << endl;
+                    }
 
-                        double eccAnomaly2 = eccAnamoly1 + deltaE;
+                    thrustArcIc tarc2 = thrustArcIc(vr2, vTheta2, r2, xi2PreTarc2);
+                    dense_stepper_type tarc2Stepper = make_dense_output(absoluteTolerance, relTolerance, runge_kutta_dopri5<state_type>());
+                    double t_start2 = 0.0 + deltaT1Particle + coastingTimeInterval;
+                    double t_end2 = deltaT2Particle + t_start2, dt = initialStepSize;
+                    state_type inoutTarc2 = {tarc2.vrInitial, tarc2.vThetaInital, tarc2.rInitial, tarc2.xiInital};
+                    thrustArc2EOM sys2 = thrustArc2EOM(ub, v0, v1, v2, v3, fuel, deltaT1Particle, coastingTimeInterval);
 
-                        double sinTrueAnamoly2 = sin(eccAnomaly2) * sqrt(1 - pow(eCoast, 2)) / (1 - eCoast * cos(eccAnomaly2));
-                        double cosTrueAnamoly2 = (cos(eccAnomaly2) - eCoast) / (1 - eCoast * cos(eccAnomaly2));
-
-                        double trueAnamoly2 = atan2(sinTrueAnamoly2, cosTrueAnamoly2);
-
-                        if (trueAnamoly2 < 0)
-                        {
-                            trueAnamoly2 = trueAnamoly2 + 2 * M_PI;
-                        }
-                        double coastingTimeInterval = sqrt(pow(aCoast, 3) / ub) * (eccAnomaly2 - eccAnamoly1 - eCoast * (sin(eccAnomaly2) - sin(eccAnamoly1)));
-
-                        //The first section is checked and working for good particles
-                        if (debug)
-                        {
-                            cout << "True anamoly 1 is " << trueAnamoly1 << endl;
-                            cout << "Eccentric anamoly 1 is " << eccAnamoly1 << endl;
-                            cout << "Eccentric anamoly 2 is " << eccAnomaly2 << endl;
-                            cout << "True anamoly 2 is " << trueAnamoly2 << endl;
-                            cout << "Coasting time interval 2 is " << coastingTimeInterval << endl
-                                 << endl;
-                        }
-
-                        double vr2 = sqrt(ub / (aCoast * (1 - pow(eCoast, 2)))) * eCoast * sin(trueAnamoly2);
-                        double vTheta2 = sqrt(ub / (aCoast * (1 - pow(eCoast, 2)))) * (1 + eCoast * cos(trueAnamoly2));
-                        double r2 = aCoast * (1 - pow(eCoast, 2)) / (1 + eCoast * cos(trueAnamoly2));
-                        double xi2PreTarc2 = xi1PostTarc + (trueAnamoly2 - trueAnamoly1);
-
-                        //This is checked and working
-                        if (debug)
-                        {
-                            cout << "vr2 is " << vr2 << endl;
-                            cout << "vTheta2 is " << vTheta2 << endl;
-                            cout << "r2 is " << r2 << endl;
-                            cout << "xi2 is " << xi2PreTarc2 << endl
-                                 << endl;
-                        }
-
-                        double deltaT2Particle = swarm[indexConversion(particleNum, 10, numUnknowns)];
-                        double v0 = swarm[indexConversion(particleNum, 4, numUnknowns)];
-                        double v1 = swarm[indexConversion(particleNum, 5, numUnknowns)];
-                        double v2 = swarm[indexConversion(particleNum, 6, numUnknowns)];
-                        double v3 = swarm[indexConversion(particleNum, 7, numUnknowns)];
-
-                        if (outputParticleParams)
-                        {
-                            cout << "v0 is " << v0 << endl;
-                            cout << "v1 is " << v1 << endl;
-                            cout << "v2 is " << v2 << endl;
-                            cout << "v3 is " << v3 << endl;
-                            cout << "deltaE is " << deltaE << endl;
-                            cout << "deltaT2 is " << deltaT2Particle << endl
-                                 << endl;
-                        }
-
-                        thrustArcIc tarc2 = thrustArcIc(vr2, vTheta2, r2, xi2PreTarc2);
-                        dense_stepper_type tarc2Stepper = make_dense_output(absoluteTolerance, relTolerance, runge_kutta_dopri5<state_type>());
-                        double t_start2 = 0.0 + deltaT1Particle + coastingTimeInterval;
-                        double t_end2 = deltaT2Particle + t_start2, dt = initialStepSize;
-                        state_type inoutTarc2 = {tarc2.vrInitial, tarc2.vThetaInital, tarc2.rInitial, tarc2.xiInital};
-                        thrustArc2EOM sys2 = thrustArc2EOM(ub, v0, v1, v2, v3, fuel, deltaT1Particle, coastingTimeInterval);
-
-                        double vrFinal, vThetaFinal, rFinal, xiFinal;
+                    double vrFinal, vThetaFinal, rFinal, xiFinal;
+                    try
+                    {
                         integrate_adaptive(tarc2Stepper, sys2, inoutTarc2, t_start2, t_end2, dt, timeStepObserver(dt));
                         vrFinal = inoutTarc2[0];
                         vThetaFinal = inoutTarc2[1];
                         rFinal = inoutTarc2[2];
                         xiFinal = inoutTarc2[3];
-
-                        if (debug)
-                        {
-                            cout << "vr Final is " << vrFinal << endl;
-                            cout << "VTheta Final is " << vThetaFinal << endl;
-                            cout << "rFinal is " << rFinal << endl;
-                            cout << "xiFinal is " << xiFinal << endl
-                                 << endl;
-                        }
-
-                        double penalty = 0;
-
-                        if (isnan(vrFinal) || isinf(vrFinal) || isnan(vThetaFinal) || isinf(vThetaFinal) || isnan(rFinal) || isinf(rFinal) || isnan(xiFinal) || isinf(xiFinal))
-                        {
-                            penalty += badResultPenalty;
-                        }
-
-                        if (abs(vrFinal) > penaltyValueCutoff)
-                        {
-                            penalty += abs(vrFinal) * penaltyCoefficient;
-                        }
-
-                        double d2 = vThetaFinal - sqrt(ub / R2);
-                        if (abs(d2) > penaltyValueCutoff)
-                        {
-                            penalty += abs(d2) * penaltyCoefficient;
-                        }
-
-                        double d3 = rFinal - R2;
-                        if (abs(d3) > penaltyValueCutoff)
-                        {
-                            penalty += abs(d3) * penaltyCoefficient;
-                        }
-
-                        if (debug)
-                        {
-                            cout << "vrError is " << vrFinal << endl;
-                            cout << "vTheta Error is " << d2 << endl;
-                            cout << "rFinal error is " << d3 << endl;
-                            cout << "Penalty is " << penalty << endl
-                                 << endl;
-                        }
-
-                        double cost = deltaT1Particle + deltaT2Particle + penalty;
-                        costFunctionVals[particleNum] = cost;
                     }
-                    else
+                    catch (MinStepSizeException &exception)
                     {
-                        costFunctionVals[particleNum] = badResultPenalty;
+                        vrFinal = exception.getVr();
+                        vThetaFinal = exception.getvTheta();
+                        rFinal = exception.getR();
+                        xiFinal = exception.getXi();
+                        if (outputWarnings)
+                        {
+                            cout << "Minimum step size reached in first integration" << endl;
+                        }
                     }
+
+                    if (debug)
+                    {
+                        cout << "vr Final is " << vrFinal << endl;
+                        cout << "VTheta Final is " << vThetaFinal << endl;
+                        cout << "rFinal is " << rFinal << endl;
+                        cout << "xiFinal is " << xiFinal << endl
+                             << endl;
+                    }
+
+                    double penalty = 0;
+
+                    if (isnan(vrFinal) || isinf(vrFinal) || isnan(vThetaFinal) || isinf(vThetaFinal) || isnan(rFinal) || isinf(rFinal) || isnan(xiFinal) || isinf(xiFinal))
+                    {
+                        penalty += badResultPenalty;
+                    }
+
+                    if (abs(vrFinal) > penaltyValueCutoff)
+                    {
+                        penalty += abs(vrFinal) * penaltyCoefficient;
+                    }
+
+                    double d2 = vThetaFinal - sqrt(ub / R2);
+                    if (abs(d2) > penaltyValueCutoff)
+                    {
+                        penalty += abs(d2) * penaltyCoefficient;
+                    }
+
+                    double d3 = rFinal - R2;
+                    if (abs(d3) > penaltyValueCutoff)
+                    {
+                        penalty += abs(d3) * penaltyCoefficient;
+                    }
+
+                    if (debug)
+                    {
+                        cout << "vrError is " << vrFinal << endl;
+                        cout << "vTheta Error is " << d2 << endl;
+                        cout << "rFinal error is " << d3 << endl;
+                        cout << "Penalty is " << penalty << endl
+                             << endl;
+                    }
+
+                    double cost = deltaT1Particle + deltaT2Particle + penalty;
+                    costFunctionVals[particleNum] = cost;
                 }
-                catch (MinStepSizeException &exception)
+                else
                 {
-                    if (outputWarnings)
-                    {
-                        cout << "Minimum step size reached" << endl;
-                    }
                     costFunctionVals[particleNum] = badResultPenalty;
                 }
                 if (debug)
@@ -792,7 +808,8 @@ double getCPUTime()
 void writeToFile(ofstream &fileStream, double wallElapsed, double cpuElapsed, double globalBestValue, double *globalBestParticle, int numUnknowns)
 {
     fileStream << wallElapsed << "," << cpuElapsed << "," << globalBestValue;
-    for(int i =0; i < numUnknowns; i++){
+    for (int i = 0; i < numUnknowns; i++)
+    {
         fileStream << "," << globalBestParticle[i];
     }
 }
