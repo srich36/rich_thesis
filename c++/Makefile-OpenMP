@@ -1,5 +1,5 @@
 CC := -c++
-CFLAGS = -g -Wall
+CFLAGS = -pedantic-errors -Wall -Wextra -O3
 TARGET = openMP
 TARGET_OUTPUT_DIR = build/openMP
 SRC = src/openMP/openMPmain.cpp

@@ -3,8 +3,8 @@ clc; clear all; close;
 warning("off");
 
 %%TOLERANCES AT 1E-9 AND 1E-9%%
-absTol =  1e-9;
-relTol = 1e-9;
+absTol =  1e-12;
+relTol = 1e-12;
 odeOpts = odeset('RelTol',relTol,'AbsTol', absTol);
 
 testParticle = [ -0.1113920784215116 0.5357357958675356 -0.24180056771788 0.687211212839945 -0.4531538117721277 0.2446802158252827 1 -0.509966781944775 0.6769918348448826 2.533188950247312 0.4366475759793644   ];
@@ -69,10 +69,9 @@ ParticleUB = [ UBxi, UBxi, UBxi, UBxi, UBv, UBv, UBv, UBv, UBt1, UBdeltaE, UBdel
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%    Particle Params     %%
 numExecutions=1; numPsoIterations=1;
-numParticles = 10; numUnknowns = 11; numIterations = 10;
+numParticles = 110; numUnknowns = 11; numIterations = 500;
 %%    Particle Params     %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-options = odeset('RelTol',1e-8,'AbsTol',1e-10);
 
 thurstArcFigFilename = 'figures/thrustArcs.fig';
 

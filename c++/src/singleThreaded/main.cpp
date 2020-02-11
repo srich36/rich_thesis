@@ -14,6 +14,7 @@
 using namespace std;
 using namespace boost::numeric::odeint;
 
+
 typedef std::vector<double> state_type;
 typedef boost::numeric::odeint::result_of::make_dense_output<
     runge_kutta_dopri5<state_type>>::type dense_stepper_type;
@@ -25,9 +26,9 @@ double testParticle[] = {-0.6356245844181813, 0.6749135584289404, -0.37827335315
 /*
 ************Configuration params************
 */
-const int numExecutions = 1, numPsoIterations = 1;
+const int numExecutions = 3, numPsoIterations = 1;
 const int numUnknowns = 11;
-int numParticles = 110;
+int numParticles = 111;
 int numIterations = 500;
 /*
 ************Configuration params************
@@ -235,7 +236,9 @@ void setParticle(double *, double *, int, int);
 void setGlobalBestParticle(double *, double *, int, int);
 double getWallTime();
 double getCPUTime();
-void writeToFile(std::ofstream &, double, double, double, double *, int);
+void writeToFile(std::ofstream &, double, double, double, double *, int, int, int);
+void writeHeadersToFile(std::ofstream &);
+bool fileExists(string);
 
 //double testParticle[] = {    -1.0000    0.1971    1.0000    0.9083   -0.3037   -1.0000    0.4753   -1.0000    0.7950    2.6223    0.4526  };
 
@@ -285,7 +288,18 @@ int main()
     /*PSO Configuration params*/
 
     std::ofstream resultsFile;
-    resultsFile.open("results6.csv", ios::app);
+    string fileName = "pNum"+to_string(numParticles)+"Inum"+to_string(numIterations)+".csv";
+
+    bool fileExistsBool = fileExists(fileName);
+    resultsFile.open(fileName, ios::app);
+    if(!fileExistsBool){
+        writeHeadersToFile(resultsFile);
+    }
+
+    resultsFile.precision(16);
+    resultsFile.setf(ios::fixed);
+    resultsFile.setf(ios::showpoint);
+
 
     srand(time(0));
     int Beta = 2;
@@ -702,9 +716,7 @@ int main()
         cout << "Wall Time = " << wallElapsed << " seconds" << endl;
         cout << "CPU Time  = " << cpuElapsed << " seconds" << endl;
 
-        writeToFile(resultsFile, wallElapsed, cpuElapsed, globalBestValue, globalBestParticle, numUnknowns);
-
-        resultsFile << globalBestValue << "\n";
+        writeToFile(resultsFile, wallElapsed, cpuElapsed, globalBestValue, globalBestParticle, numUnknowns, numParticles, numIterations);
 
         if (!evalTestParticle)
         {
@@ -805,11 +817,27 @@ double getCPUTime()
     return (double)clock() / CLOCKS_PER_SEC;
 }
 
-void writeToFile(ofstream &fileStream, double wallElapsed, double cpuElapsed, double globalBestValue, double *globalBestParticle, int numUnknowns)
+void writeToFile(ofstream &fileStream, double wallElapsed, double cpuElapsed, double globalBestValue, double *globalBestParticle, int numUnknowns, int numParticles, int numIterations)
 {
+    fileStream << numParticles << "," << numIterations << ",";
     fileStream << wallElapsed << "," << cpuElapsed << "," << globalBestValue;
     for (int i = 0; i < numUnknowns; i++)
     {
         fileStream << "," << globalBestParticle[i];
     }
+    fileStream << endl;
+}
+
+void writeHeadersToFile(ofstream &outFile){
+    outFile << "Num Particles" << "," << "Num Iterations" << "," << "Wall elapsed (s)" << "," << "CPU Elapsed (s)" << ",";
+    outFile << "JBest" << "," << "xi1" << "," << "xi2" << "," << "xi3" << "," << "xi4" << ",";
+    outFile << "vi1" << "," << "vi2" << "," << "vi3" << "," << "vi4" << "," << "t1" << "," << "deltaE" << "," << "t2" << endl;
+}
+
+
+
+bool fileExists(string fileName)
+{
+    ifstream infile(fileName);
+    return infile.good();
 }

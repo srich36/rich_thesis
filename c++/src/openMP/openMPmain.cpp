@@ -10,6 +10,7 @@
 #include <fstream>
 #include <time.h>
 #include <sys/time.h>
+#include <boost/filesystem.hpp>
 //OpenMP header
 #include <omp.h>
 
@@ -21,7 +22,7 @@ typedef boost::numeric::odeint::result_of::make_dense_output<
     runge_kutta_dopri5<state_type>>::type dense_stepper_type;
 
 const double MIN_STEP_SIZE = 7.105427e-15;
-bool debug = false, outputParticleParams = false, evalTestParticle = false, outputWarnings = true;
+bool debug = false, outputParticleParams = false, evalTestParticle = false, outputWarnings = false;
 double testParticle[] = {0.173945744856986, -0.842356233175261, 0.990179483375890, -0.546457301377733, 0.340690252916427, 0.700827096907570, -0.281072683912077, 0.393928377306378, 0.684692699088479, 3.12461986729737, 0.451065842770464};
 
 /*
@@ -287,7 +288,7 @@ int main()
     /*PSO Configuration params*/
 
     std::ofstream resultsFile;
-    resultsFile.open("open-mp-results.csv", ios::app);
+    resultsFile.open("open-mp-results/test.csv", ios::app);
 
     srand(time(0));
     int Beta = 2;
@@ -380,8 +381,6 @@ int main()
             for (int particleNum = 0; particleNum < numParticles; particleNum++)
             {
                 //Using four threads here by default
-                /* try
-                { */
 
                 //Evaluate each particle here
                 double deltaT1Particle = swarm[indexConversion(particleNum, 8, numUnknowns)];
