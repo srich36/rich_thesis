@@ -10,7 +10,6 @@
 #include <fstream>
 #include <time.h>
 #include <sys/time.h>
-#include <boost/filesystem.hpp>
 //OpenMP header
 #include <omp.h>
 
@@ -23,14 +22,14 @@ typedef boost::numeric::odeint::result_of::make_dense_output<
 
 const double MIN_STEP_SIZE = 7.105427e-15;
 bool debug = false, outputParticleParams = false, evalTestParticle = false, outputWarnings = false;
-double testParticle[] = {0.173945744856986, -0.842356233175261, 0.990179483375890, -0.546457301377733, 0.340690252916427, 0.700827096907570, -0.281072683912077, 0.393928377306378, 0.684692699088479, 3.12461986729737, 0.451065842770464};
+double testParticle[] = {-0.6356245844181813, 0.6749135584289404, -0.3782733531510278, -0.1791742193502524, 0.2948498719982566, -0.2533456929439651, -0.9806058557165864, -0.1882857942679574, 0.7291294746670177, 3.083940333165867, 0.4104569474969907};
 
 /*
 ************Configuration params************
 */
-const int numExecutions = 1, numPsoIterations = 1;
+const int numExecutions = 5000, numPsoIterations = 1;
 const int numUnknowns = 11;
-int numParticles = 110;
+int numParticles = 120;
 int numIterations = 500;
 /*
 ************Configuration params************
@@ -238,7 +237,9 @@ void setParticle(double *, double *, int, int);
 void setGlobalBestParticle(double *, double *, int, int);
 double getWallTime();
 double getCPUTime();
-void writeToFile(std::ofstream &, double, double, double, double *, int);
+void writeToFile(std::ofstream &, double, double, double, double *, int, int, int);
+void writeHeadersToFile(std::ofstream &);
+bool fileExists(string);
 
 //double testParticle[] = {    -1.0000    0.1971    1.0000    0.9083   -0.3037   -1.0000    0.4753   -1.0000    0.7950    2.6223    0.4526  };
 
@@ -288,7 +289,18 @@ int main()
     /*PSO Configuration params*/
 
     std::ofstream resultsFile;
-    resultsFile.open("open-mp-results/test.csv", ios::app);
+    string fileName = "OMPpNum" + to_string(numParticles) + "Inum" + to_string(numIterations) + ".csv";
+
+    bool fileExistsBool = fileExists(fileName);
+    resultsFile.open(fileName, ios::app);
+    if (!fileExistsBool)
+    {
+        writeHeadersToFile(resultsFile);
+    }
+
+    resultsFile.precision(16);
+    resultsFile.setf(ios::fixed);
+    resultsFile.setf(ios::showpoint);
 
     srand(time(0));
     int Beta = 2;
@@ -375,12 +387,10 @@ int main()
             if (displayIterationNum)
                 cout << "***On iteration " << iterationNum + 1 << " out of " << numIterations << " ***\n";
 
-//We can parallelize here
+                //We can parallelize here
 #pragma omp parallel for
-
             for (int particleNum = 0; particleNum < numParticles; particleNum++)
             {
-                //Using four threads here by default
 
                 //Evaluate each particle here
                 double deltaT1Particle = swarm[indexConversion(particleNum, 8, numUnknowns)];
@@ -413,7 +423,6 @@ int main()
                 thrustArc1EOM sys1 = thrustArc1EOM(ub, xi0, xi1, xi2, xi3, fuel);
 
                 double vr1, vTheta1, r1, xi1PostTarc;
-
                 try
                 {
                     integrate_adaptive(tarc1Stepper, sys1, inoutTarc1, t_start1, t_end1, dt, timeStepObserver(dt));
@@ -709,9 +718,7 @@ int main()
         cout << "Wall Time = " << wallElapsed << " seconds" << endl;
         cout << "CPU Time  = " << cpuElapsed << " seconds" << endl;
 
-        writeToFile(resultsFile, wallElapsed, cpuElapsed, globalBestValue, globalBestParticle, numUnknowns);
-
-        resultsFile << globalBestValue << "\n";
+        writeToFile(resultsFile, wallElapsed, cpuElapsed, globalBestValue, globalBestParticle, numUnknowns, numParticles, numIterations);
 
         if (!evalTestParticle)
         {
@@ -812,11 +819,54 @@ double getCPUTime()
     return (double)clock() / CLOCKS_PER_SEC;
 }
 
-void writeToFile(ofstream &fileStream, double wallElapsed, double cpuElapsed, double globalBestValue, double *globalBestParticle, int numUnknowns)
+void writeToFile(ofstream &fileStream, double wallElapsed, double cpuElapsed, double globalBestValue, double *globalBestParticle, int numUnknowns, int numParticles, int numIterations)
 {
+    fileStream << numParticles << "," << numIterations << ",";
     fileStream << wallElapsed << "," << cpuElapsed << "," << globalBestValue;
     for (int i = 0; i < numUnknowns; i++)
     {
         fileStream << "," << globalBestParticle[i];
     }
+    fileStream << endl;
+}
+
+void writeHeadersToFile(ofstream &outFile)
+{
+    outFile << "Num Particles"
+            << ","
+            << "Num Iterations"
+            << ","
+            << "Wall elapsed (s)"
+            << ","
+            << "CPU Elapsed (s)"
+            << ",";
+    outFile << "JBest"
+            << ","
+            << "xi1"
+            << ","
+            << "xi2"
+            << ","
+            << "xi3"
+            << ","
+            << "xi4"
+            << ",";
+    outFile << "vi1"
+            << ","
+            << "vi2"
+            << ","
+            << "vi3"
+            << ","
+            << "vi4"
+            << ","
+            << "t1"
+            << ","
+            << "deltaE"
+            << ","
+            << "t2" << endl;
+}
+
+bool fileExists(string fileName)
+{
+    ifstream infile(fileName);
+    return infile.good();
 }

@@ -26,9 +26,9 @@ double testParticle[] = {-0.6356245844181813, 0.6749135584289404, -0.37827335315
 /*
 ************Configuration params************
 */
-const int numExecutions = 3, numPsoIterations = 1;
+const int numExecutions = 30, numPsoIterations = 1;
 const int numUnknowns = 11;
-int numParticles = 111;
+int numParticles = 110;
 int numIterations = 500;
 /*
 ************Configuration params************
@@ -288,7 +288,7 @@ int main()
     /*PSO Configuration params*/
 
     std::ofstream resultsFile;
-    string fileName = "pNum"+to_string(numParticles)+"Inum"+to_string(numIterations)+".csv";
+    string fileName = "STpNum"+to_string(numParticles)+"Inum"+to_string(numIterations)+".csv";
 
     bool fileExistsBool = fileExists(fileName);
     resultsFile.open(fileName, ios::app);
