@@ -27,10 +27,10 @@ double testParticle[] = {-0.6356245844181813, 0.6749135584289404, -0.37827335315
 /*
 ************Configuration params************
 */
-const int numExecutions = 5000, numPsoIterations = 1;
+const int numExecutions = 30, numPsoIterations = 1;
 const int numUnknowns = 11;
-int numParticles = 120;
-int numIterations = 500;
+int numParticles = 25;
+int numIterations = 250;
 /*
 ************Configuration params************
 */
