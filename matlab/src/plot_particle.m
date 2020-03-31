@@ -63,7 +63,8 @@ for numPart = 1:numParticles
     delta2 = v0+v1.*tminust2+v2.*tminust2.^2+v3.*tminust2.^3;
     
     subplot(2,1,1);
-    plot(t1, rad2deg(delta1), '-o');
+    plot(t1, rad2deg(delta1), '-o', 'LineWidth', 3);
+    set(gca,'FontSize',18)
     title("Thrust arc 1 angle B=10");
     ylabel("Angle (radians)");
     xlabel("Time (TU)");
@@ -73,11 +74,12 @@ for numPart = 1:numParticles
     hold on;
     
     subplot(2,1,2);
-    plot(tminust2, rad2deg(delta2), '-o');
+    plot(tminust2, rad2deg(delta2), '-o', 'LineWidth', 3);
     title("Thrust arc 2 angle B=4");
     ylabel("Angle (radians)");
     xlabel("Time (TU)");
         legend(['JBest=' num2str(JBestValues(1))],['JBest=' num2str(JBestValues(2))], ['JBest=' num2str(JBestValues(3))]);
+    set(gca,'FontSize',18)
 
 
     hold on;
