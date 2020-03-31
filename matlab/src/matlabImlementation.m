@@ -3,8 +3,8 @@ clc; clear all; close;
 warning("off");
 
 %%TOLERANCES AT 1E-9 AND 1E-9%%
-absTol =  1e-12;
-relTol = 1e-12;
+absTol =  1e-9;
+relTol = 1e-9;
 odeOpts = odeset('RelTol',relTol,'AbsTol', absTol);
 
 testParticle = [ 0.010334037697272	0.87171084610591	-1	-0.655523315207776	0.106161635720552	-0.706477725343784	1	0.112312472895455	0.673219865317401	2.77319252067771	0.411048474252991 ];
